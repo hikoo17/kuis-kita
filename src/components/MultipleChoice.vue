@@ -1,4 +1,6 @@
 <script setup>
+import { Check, X } from '@lucide/vue'
+
 const props = defineProps({
   options: { type: Array, default: () => [] },
   selectedAnswer: { type: String, default: '' },
@@ -51,12 +53,12 @@ function labelClasses(option) {
 </script>
 
 <template>
-  <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+  <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
     <button
       v-for="option in options"
       :key="option.label"
       type="button"
-      class="group flex min-h-[5.5rem] items-center gap-4 rounded-3xl px-5 py-4 text-left
+      class="group relative flex min-h-[5.5rem] items-center gap-3.5 rounded-2xl px-4 py-3.5 text-left
              transition duration-200 focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-300"
       :class="optionClasses(option)"
       :disabled="disabled || revealed"
@@ -64,13 +66,23 @@ function labelClasses(option) {
       @click="emit('select', option.label)"
     >
       <span
-        class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-xl font-extrabold transition duration-200"
+        class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-lg font-extrabold transition duration-200"
         :class="labelClasses(option)"
       >
         {{ option.label }}
       </span>
-      <span class="text-lg font-bold leading-snug text-slate-800 sm:text-xl preserve-lines">
+      <span class="text-base font-bold leading-snug text-slate-800 sm:text-lg preserve-lines">
         {{ option.text }}
+      </span>
+
+      <!-- Penanda benar/salah, hanya pada pilihan yang dipilih. -->
+      <span
+        v-if="revealed && selectedAnswer === option.label"
+        class="absolute right-3.5 top-3.5"
+        aria-hidden="true"
+      >
+        <Check v-if="option.label === correctAnswer" :size="20" class="text-emerald-600" />
+        <X v-else :size="20" class="text-red-500" />
       </span>
     </button>
   </div>

@@ -458,56 +458,64 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="mx-auto max-w-7xl px-4 py-6 lg:py-8">
+  <div class="min-h-screen bg-slate-50">
     <!-- ============================== HEADER ============================== -->
-    <div v-if="stage === 'quiz'" class="mb-6 flex items-center justify-between gap-4">
-      <button
-        type="button"
-        class="btn-neutral !px-4 !py-2 !text-base shadow-card ring-0 hover:shadow-card-hover"
-        title="Kembali untuk ganti materi"
-        @click="requestBackToSubject"
-      >
-        <ArrowLeft :size="18" aria-hidden="true" />
-        Kembali
-      </button>
-      <p v-if="selectedClass" class="chip bg-white !px-4 !py-2 !text-base text-slate-900 shadow-card">
-        {{ selectedClass.name }}
-      </p>
-    </div>
+    <header
+      v-if="stage === 'quiz'"
+      class="z-20 border-b border-slate-200 bg-white shadow-card"
+    >
+      <div class="mx-auto flex max-w-[1700px] items-center gap-3 px-4 py-2 lg:px-6">
+        <button
+          type="button"
+          class="btn-neutral !px-3.5 !py-2 !text-base shadow-none ring-1 ring-slate-200 hover:bg-slate-100"
+          title="Kembali untuk ganti materi"
+          @click="requestBackToSubject"
+        >
+          <ArrowLeft :size="18" aria-hidden="true" />
+          Kembali
+        </button>
 
-    <section v-if="stage === 'quiz'" class="mb-6 rounded-3xl bg-white p-5 shadow-card">
-      <div class="flex flex-wrap items-center gap-4">
-        <div>
-          <p class="text-xs font-extrabold tracking-[0.2em] text-brand-600">Kuis Kelas</p>
-          <h1 class="text-2xl font-extrabold text-slate-900 sm:text-3xl">
+        <div class="ms-1 min-w-0">
+          <p class="text-[11px] font-extrabold uppercase tracking-[0.18em] text-brand-600">Kuis Kelas</p>
+          <h1 class="truncate text-lg font-extrabold leading-tight text-slate-900 sm:text-xl">
             {{ subjectLabel }}
           </h1>
         </div>
 
-        <div class="ms-auto flex flex-wrap items-center gap-4">
-          <div class="text-right">
-            <p class="text-xs font-bold tracking-widest text-slate-400">Progres</p>
-            <p class="text-lg font-extrabold text-slate-800">
-              Soal {{ currentQuestionNumber }} dari {{ totalQuestions }}
-            </p>
+        <div class="ms-auto flex items-center gap-3">
+          <p class="whitespace-nowrap text-sm font-extrabold text-slate-700 sm:text-base">
+            Soal {{ currentQuestionNumber }}
+            <span class="font-bold text-slate-400">dari</span> {{ totalQuestions }}
+          </p>
+          <div
+            class="hidden h-2.5 w-36 overflow-hidden rounded-full bg-slate-100 sm:block lg:w-48"
+            role="progressbar"
+            :aria-valuenow="progressBarPercent"
+            aria-valuemin="0"
+            aria-valuemax="100"
+          >
+            <div
+              class="h-full rounded-full bg-gradient-to-r from-brand-500 to-brand-700 transition-all duration-500"
+              :style="{ width: progressBarPercent + '%' }"
+            />
           </div>
-          <ScoreDisplay v-if="currentStudent" :streak="streak" />
         </div>
-      </div>
 
-      <div class="mt-4 h-3 w-full overflow-hidden rounded-full bg-slate-100">
-        <div
-          class="h-full rounded-full bg-gradient-to-r from-brand-500 to-brand-700 transition-all duration-500"
-          :style="{ width: progressBarPercent + '%' }"
-        />
-      </div>
+        <p class="hidden whitespace-nowrap text-xs font-semibold text-slate-400 xl:block">
+          Shortcuts: <span class="text-slate-500">Enter</span> kirim ·
+          <span class="text-slate-500">F</span> penuh
+        </p>
 
-      <p class="mt-3 text-xs font-semibold text-slate-400">
-        Pintasan keyboard: <span class="text-slate-500">Enter</span> kirim ·
-        <span class="text-slate-500">Spasi</span> lanjut ·
-        <span class="text-slate-500">F</span> layar penuh
-      </p>
-    </section>
+        <span
+          v-if="selectedClass"
+          class="shrink-0 rounded-full bg-brand-600 px-3.5 py-1.5 text-sm font-extrabold text-white shadow-card"
+        >
+          {{ selectedClass.name }}
+        </span>
+      </div>
+    </header>
+
+    <main class="mx-auto max-w-[1700px] px-4 py-4 lg:px-6">
 
     <!-- =============================== ERROR =============================== -->
     <div
@@ -551,104 +559,121 @@ onBeforeUnmount(() => {
       />
     </template>
 
-    <!-- =============================== SOAL =============================== -->
-    <div v-else-if="stage === 'quiz'" class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-      <div class="lg:col-span-2">
-        <div v-if="isLoadingQuiz" class="card text-center">
-          <div class="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-brand-200 border-t-brand-600"></div>
-          <p class="mt-4 text-lg font-semibold text-slate-500">Memuat...</p>
-        </div>
+      <!-- =============================== SOAL =============================== -->
+      <div
+        v-else-if="stage === 'quiz'"
+        class="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,7fr)_minmax(0,3fr)]"
+      >
+        <!-- ====================== KIRI: SOAL & PILIHAN ====================== -->
+        <section class="min-w-0">
+          <div v-if="isLoadingQuiz" class="card text-center">
+            <div class="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-brand-200 border-t-brand-600"></div>
+            <p class="mt-4 text-lg font-semibold text-slate-500">Memuat...</p>
+          </div>
 
-        <QuestionCard
-          v-if="!isLoadingQuiz && currentQuestion"
-          :question="currentQuestion"
-          :question-number="currentQuestionNumber"
-          :total-questions="totalQuestions"
-          :time-left="isTimerRunning ? timeLeft : null"
-        >
-          <!-- Pilihan ganda selalu terlihat supaya kelas bisa ikut berpikir;
-               baru bisa diklik setelah siswa dipilih. -->
-          <MultipleChoice
-            v-if="isMultipleChoice"
-            :key="currentQuestion.id"
-            :options="displayOptions"
-            :selected-answer="pendingAnswer"
-            :correct-answer="currentQuestion.correct_answer"
-            :revealed="isRevealed"
-            :disabled="!selectedStudent || isSubmitting"
-            @select="onSelectOption"
-          />
-
-          <template v-else-if="selectedStudent">
-            <ShortAnswer
+          <QuestionCard
+            v-else-if="currentQuestion"
+            :question="currentQuestion"
+            :question-number="currentQuestionNumber"
+            :total-questions="totalQuestions"
+            :time-left="isTimerRunning ? timeLeft : null"
+          >
+            <!-- Pilihan ganda selalu terlihat supaya kelas bisa ikut berpikir;
+                 baru bisa diklik setelah siswa dipilih. -->
+            <MultipleChoice
+              v-if="isMultipleChoice"
               :key="currentQuestion.id"
-              ref="shortAnswerRef"
-              :disabled="isRevealed"
-              :is-loading="isSubmitting"
-              @submit="onSubmitShortAnswer"
+              :options="displayOptions"
+              :selected-answer="pendingAnswer"
+              :correct-answer="currentQuestion.correct_answer"
+              :revealed="isRevealed"
+              :disabled="!selectedStudent || isSubmitting"
+              @select="onSelectOption"
             />
-          </template>
 
-          <div v-if="isMultipleChoice && selectedStudent && !isRevealed" class="mt-6 text-center">
-            <button
-              type="button"
-              class="btn-primary w-full px-10 py-5 text-xl sm:w-auto"
-              :disabled="!pendingAnswer || isSubmitting"
-              @click="onSubmitOption"
+            <template v-else-if="selectedStudent">
+              <ShortAnswer
+                :key="currentQuestion.id"
+                ref="shortAnswerRef"
+                :disabled="isRevealed"
+                :is-loading="isSubmitting"
+                @submit="onSubmitShortAnswer"
+              />
+            </template>
+
+            <div v-if="isMultipleChoice && selectedStudent && !isRevealed" class="mt-4 flex justify-center">
+              <button
+                type="button"
+                class="btn-primary w-full px-10 py-4 text-lg sm:w-auto"
+                :disabled="!pendingAnswer || isSubmitting"
+                @click="onSubmitOption"
+              >
+                {{ isSubmitting ? 'Memeriksa...' : 'Kirim Jawaban' }}
+              </button>
+            </div>
+          </QuestionCard>
+        </section>
+
+        <!-- ================= KANAN: PAPAN SKOR & PENJAWAB ================= -->
+        <aside class="min-w-0 space-y-4 xl:border-l xl:border-slate-200 xl:pl-5">
+          <!-- PAPAN SKOR -->
+          <div class="rounded-3xl bg-white p-4 shadow-card">
+            <div class="mb-3 flex items-center justify-between gap-3">
+              <h2 class="text-xs font-extrabold uppercase tracking-[0.18em] text-slate-500">Papan Skor</h2>
+              <ScoreDisplay v-if="currentStudent" :streak="streak" compact />
+            </div>
+            <Leaderboard
+              :students="sideLeaderboard"
+              :limit="6"
+              compact
+              :highlight-id="currentStudent?.id ?? ''"
+            />
+          </div>
+
+          <!-- SIAPA YANG INGIN MENJAWAB -->
+          <div class="rounded-3xl bg-white p-4 shadow-card">
+            <h2 class="text-xs font-extrabold uppercase tracking-[0.18em] text-slate-500">
+              Siapa yang ingin menjawab?
+            </h2>
+
+            <p
+              v-if="currentStudent"
+              class="mt-3 flex items-center gap-2 rounded-2xl bg-brand-50 px-3.5 py-3 text-base font-extrabold text-brand-700 ring-1 ring-brand-200"
             >
-              {{ isSubmitting ? 'Memeriksa...' : 'Kirim Jawaban' }}
-            </button>
-          </div>
-        </QuestionCard>
+              <span class="text-lg" aria-hidden="true">🙋</span>
+              <span class="min-w-0 truncate">{{ currentStudent.name }}</span>
+            </p>
 
-        <!-- Picker siswa: kartu terpisah di bawah soal. -->
-        <div
-          v-if="!isLoadingQuiz && currentQuestion && !selectedStudent"
-          class="card mt-6 animate-fade-in"
-        >
-          <p class="text-left text-xl font-extrabold text-slate-800 sm:text-2xl">
-            Siapa yang ingin menjawab?
-          </p>
+            <div v-if="isLoadingStudents" class="mt-4 text-center text-base font-semibold text-slate-500">
+              Memuat...
+            </div>
 
-          <div v-if="isLoadingStudents" class="mt-6 text-center text-lg font-semibold text-slate-500">
-            Memuat...
-          </div>
+            <div v-else-if="classStudents.length === 0" class="mt-4 text-center">
+              <p class="text-3xl" aria-hidden="true">❓</p>
+              <p class="mt-2 font-bold text-slate-700">Belum Ada Siswa di Kelas Ini</p>
+              <p class="text-sm text-slate-500">Tambahkan siswa melalui Dashboard Guru.</p>
+            </div>
 
-          <div v-else-if="classStudents.length === 0" class="mt-6 text-center">
-            <p class="text-4xl" aria-hidden="true">❓</p>
-            <p class="mt-2 font-bold text-slate-700">Belum Ada Siswa di Kelas Ini</p>
-            <p class="text-slate-500">Tambahkan siswa ke kelas ini melalui Dashboard Guru.</p>
-          </div>
-
-          <div v-else class="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <button
-              v-for="student in classStudents"
-              :key="student.id"
-              type="button"
-              class="rounded-2xl bg-slate-50 px-4 py-4 text-lg font-extrabold text-slate-700 ring-1
-                     ring-slate-200 transition hover:bg-brand-50 hover:text-brand-700 hover:ring-brand-300
-                     focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-300 active:scale-95"
-              @click="onSelectStudent(student)"
+            <div
+              v-else-if="!selectedStudent"
+              class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-3"
             >
-              {{ student.name }}
-            </button>
+              <button
+                v-for="student in classStudents"
+                :key="student.id"
+                type="button"
+                class="truncate rounded-xl bg-slate-50 px-2.5 py-2.5 text-sm font-extrabold text-slate-700 ring-1
+                       ring-slate-200 transition duration-200 hover:bg-brand-50 hover:text-brand-700
+                       hover:ring-brand-300 focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-300
+                       active:scale-95"
+                @click="onSelectStudent(student)"
+              >
+                {{ student.name }}
+              </button>
+            </div>
           </div>
-        </div>
+        </aside>
       </div>
-
-      <!-- Papan skor langsung, tampil di samping soal -->
-      <aside class="lg:col-span-1">
-        <div class="card">
-          <h2 class="mb-4 text-center text-xl font-extrabold text-slate-900">🏆 Papan Skor</h2>
-          <Leaderboard
-            :students="sideLeaderboard"
-            :limit="8"
-            compact
-            :highlight-id="currentStudent?.id ?? ''"
-          />
-        </div>
-      </aside>
-    </div>
 
     <!-- ============================= SELESAI ============================= -->
     <div v-else-if="stage === 'finished'" class="mx-auto max-w-3xl animate-fade-in">
@@ -679,6 +704,7 @@ onBeforeUnmount(() => {
         </div>
       </div>
     </div>
+    </main>
 
     <!-- ============================= FEEDBACK ============================= -->
     <AnswerFeedback

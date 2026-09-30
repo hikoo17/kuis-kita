@@ -11,11 +11,10 @@ defineProps({
 </script>
 
 <template>
-  <article class="rounded-3xl bg-white p-6 shadow-card sm:p-8 lg:p-10">
+  <article class="rounded-3xl bg-white p-4 shadow-card sm:p-6 lg:p-7">
     <header class="flex items-center justify-between gap-3">
-      <span class="text-sm font-bold tracking-widest text-slate-400">
-        Soal {{ questionNumber }}
-        <template v-if="totalQuestions">dari {{ totalQuestions }}</template>
+      <span class="text-xs font-extrabold uppercase tracking-[0.18em] text-brand-600">
+        Soal {{ questionNumber }}<template v-if="totalQuestions"> dari {{ totalQuestions }}</template>
       </span>
 
       <span
@@ -28,7 +27,7 @@ defineProps({
       </span>
     </header>
 
-    <h2 class="mt-6 text-2xl font-extrabold leading-snug text-slate-900 preserve-lines sm:text-3xl lg:text-4xl">
+    <h2 class="mt-3 text-xl font-extrabold leading-snug text-slate-900 preserve-lines sm:text-2xl lg:text-3xl">
       <MatrixText :text="question.question_text" />
     </h2>
 
@@ -36,10 +35,10 @@ defineProps({
       v-if="question.image_url"
       :src="question.image_url"
       :alt="question.question_text ? `Gambar untuk soal: ${question.question_text}` : 'Gambar soal'"
-      class="mx-auto mt-5 max-h-72 w-auto rounded-2xl object-contain ring-1 ring-slate-200"
+      class="mx-auto mt-4 max-h-48 w-auto rounded-2xl object-contain ring-1 ring-slate-200"
     />
 
-    <div class="mt-8">
+    <div class="mt-5">
       <slot />
     </div>
   </article>
