@@ -475,13 +475,6 @@ onBeforeUnmount(() => {
           Kembali
         </button>
 
-        <div class="ms-1 min-w-0">
-          <p class="text-[11px] font-extrabold uppercase tracking-[0.18em] text-brand-600">Kuis Kelas</p>
-          <h1 class="truncate text-lg font-extrabold leading-tight text-slate-900 sm:text-xl">
-            {{ subjectLabel }}
-          </h1>
-        </div>
-
         <div class="ms-auto flex items-center gap-3">
           <p class="whitespace-nowrap text-sm font-extrabold text-slate-700 sm:text-base">
             Soal {{ currentQuestionNumber }}
