@@ -501,11 +501,6 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
-        <p class="hidden whitespace-nowrap text-xs font-semibold text-slate-400 xl:block">
-          Shortcuts: <span class="text-slate-500">Enter</span> kirim ·
-          <span class="text-slate-500">F</span> penuh
-        </p>
-
         <span
           v-if="selectedClass"
           class="shrink-0 rounded-full bg-brand-600 px-3.5 py-1.5 text-sm font-extrabold text-white shadow-card"
