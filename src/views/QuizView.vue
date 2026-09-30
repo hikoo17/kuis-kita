@@ -579,38 +579,39 @@ onBeforeUnmount(() => {
           :total-questions="totalQuestions"
           :time-left="isTimerRunning ? timeLeft : null"
         >
-          <template v-if="selectedStudent">
-            <MultipleChoice
-              v-if="isMultipleChoice"
-              :key="currentQuestion.id"
-              :options="displayOptions"
-              :selected-answer="pendingAnswer"
-              :correct-answer="currentQuestion.correct_answer"
-              :revealed="isRevealed"
-              :disabled="isSubmitting"
-              @select="onSelectOption"
-            />
+          <!-- Pilihan ganda selalu terlihat supaya kelas bisa ikut berpikir;
+               baru bisa diklik setelah siswa dipilih. -->
+          <MultipleChoice
+            v-if="isMultipleChoice"
+            :key="currentQuestion.id"
+            :options="displayOptions"
+            :selected-answer="pendingAnswer"
+            :correct-answer="currentQuestion.correct_answer"
+            :revealed="isRevealed"
+            :disabled="!selectedStudent || isSubmitting"
+            @select="onSelectOption"
+          />
 
+          <template v-else-if="selectedStudent">
             <ShortAnswer
-              v-else
               :key="currentQuestion.id"
               ref="shortAnswerRef"
               :disabled="isRevealed"
               :is-loading="isSubmitting"
               @submit="onSubmitShortAnswer"
             />
-
-            <div v-if="isMultipleChoice && !isRevealed" class="mt-6 text-center">
-              <button
-                type="button"
-                class="btn-primary w-full px-10 py-5 text-xl sm:w-auto"
-                :disabled="!pendingAnswer || isSubmitting"
-                @click="onSubmitOption"
-              >
-                {{ isSubmitting ? 'Memeriksa...' : 'Kirim Jawaban' }}
-              </button>
-            </div>
           </template>
+
+          <div v-if="isMultipleChoice && selectedStudent && !isRevealed" class="mt-6 text-center">
+            <button
+              type="button"
+              class="btn-primary w-full px-10 py-5 text-xl sm:w-auto"
+              :disabled="!pendingAnswer || isSubmitting"
+              @click="onSubmitOption"
+            >
+              {{ isSubmitting ? 'Memeriksa...' : 'Kirim Jawaban' }}
+            </button>
+          </div>
         </QuestionCard>
 
         <!-- Picker siswa: kartu terpisah di bawah soal. -->

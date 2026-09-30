@@ -18,6 +18,10 @@ function optionClasses(option) {
   const isSelected = option.label === props.selectedAnswer
 
   if (!props.revealed) {
+    // Belum bisa diklik (mis. siswa belum dipilih): tampil redup, tanpa hover.
+    if (props.disabled) {
+      return ['bg-white ring-2 ring-slate-200 opacity-60 cursor-not-allowed']
+    }
     // The picked option stays bright blue until the answer is submitted.
     if (isSelected) return ['bg-brand-50 ring-2 ring-brand-500 shadow-card']
     return [
