@@ -607,26 +607,9 @@ onBeforeUnmount(() => {
               </button>
             </div>
           </QuestionCard>
-        </section>
-
-        <!-- ================= KANAN: PAPAN SKOR & PENJAWAB ================= -->
-        <aside class="min-w-0 space-y-4 xl:border-l xl:border-slate-200 xl:pl-5">
-          <!-- PAPAN SKOR -->
-          <div class="rounded-3xl bg-white p-4 shadow-card">
-            <div class="mb-3 flex items-center justify-between gap-3">
-              <h2 class="text-xs font-extrabold uppercase tracking-[0.18em] text-slate-500">Papan Skor</h2>
-              <ScoreDisplay v-if="currentStudent" :streak="streak" compact />
-            </div>
-            <Leaderboard
-              :students="sideLeaderboard"
-              :limit="6"
-              compact
-              :highlight-id="currentStudent?.id ?? ''"
-            />
-          </div>
 
           <!-- SIAPA YANG INGIN MENJAWAB -->
-          <div class="rounded-3xl bg-white p-4 shadow-card">
+          <div class="mt-4 rounded-3xl bg-white p-4 shadow-card">
             <h2 class="text-xs font-extrabold uppercase tracking-[0.18em] text-slate-500">
               Siapa yang ingin menjawab?
             </h2>
@@ -651,7 +634,7 @@ onBeforeUnmount(() => {
 
             <div
               v-else-if="!selectedStudent"
-              class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-3"
+              class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
             >
               <button
                 v-for="student in classStudents"
@@ -660,12 +643,29 @@ onBeforeUnmount(() => {
                 class="truncate rounded-xl bg-slate-50 px-2.5 py-2.5 text-sm font-extrabold text-slate-700 ring-1
                        ring-slate-200 transition duration-200 hover:bg-brand-50 hover:text-brand-700
                        hover:ring-brand-300 focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-300
-                       active:scale-95"
+                       active:scale-95 sm:text-base"
                 @click="onSelectStudent(student)"
               >
                 {{ student.name }}
               </button>
             </div>
+          </div>
+        </section>
+
+        <!-- ===================== KANAN: PAPAN SKOR ===================== -->
+        <aside class="min-w-0 space-y-4 xl:border-l xl:border-slate-200 xl:pl-5">
+          <!-- PAPAN SKOR -->
+          <div class="rounded-3xl bg-white p-4 shadow-card">
+            <div class="mb-3 flex items-center justify-between gap-3">
+              <h2 class="text-xs font-extrabold uppercase tracking-[0.18em] text-slate-500">Papan Skor</h2>
+              <ScoreDisplay v-if="currentStudent" :streak="streak" compact />
+            </div>
+            <Leaderboard
+              :students="sideLeaderboard"
+              :limit="6"
+              compact
+              :highlight-id="currentStudent?.id ?? ''"
+            />
           </div>
         </aside>
       </div>
