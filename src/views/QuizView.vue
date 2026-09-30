@@ -417,21 +417,30 @@ function onBackToClass() {
   play('click')
 }
 
-// Music plays strictly during an active answering session:
-// a student is picked, the countdown is done, and no answer submitted yet.
-watch([stage, selectedStudent, showCountdown, answerStatus], () => {
-  const answering =
-    stage.value === 'quiz' &&
-    !!selectedStudent.value &&
-    !showCountdown.value &&
-    answerStatus.value === 'idle'
-  isAnswering.value = answering
-  if (answering) {
-    if (settings.value.musicEnabled) startMusic()
-  } else {
-    stopMusic()
-  }
-})
+// Musik latar mengikuti fase permainan:
+// - setelah materi dipilih (kelas berpikir) → track "menu"
+// - saat hitung mundur muncul          → senyap dulu
+// - saat sesi menjawab berlangsung      → track "game"
+// - saat menampilkan umpan balik        → senyap
+function musicMode() {
+  if (stage.value !== 'quiz' || showCountdown.value) return null
+  if (!selectedStudent.value) return 'menu'
+  return answerStatus.value === 'idle' ? 'game' : null
+}
+
+watch(
+  [stage, selectedStudent, showCountdown, answerStatus, () => settings.value.musicEnabled],
+  () => {
+    const mode = musicMode()
+    isAnswering.value = mode !== null
+    if (!settings.value.musicEnabled) {
+      stopMusic()
+      return
+    }
+    if (mode) startMusic(mode)
+    else stopMusic()
+  },
+)
 
 watch(stage, (value) => {
   if (value === 'finished') {

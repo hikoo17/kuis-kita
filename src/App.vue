@@ -18,7 +18,7 @@ const route = useRoute()
 
 /** Highlight for every /admin page (login + dashboard). */
 const isDashboardSection = computed(() => route.path.startsWith('/admin'))
-const { start: startMusic, stop: stopMusic } = useMusic()
+const { stop: stopMusic } = useMusic()
 
 const fullscreenLabel = computed(() =>
   isFullscreen.value ? 'Keluar layar penuh (F)' : 'Layar penuh (F)',
@@ -63,10 +63,9 @@ function toggleSound() {
 function toggleMusic() {
   const next = !settings.value.musicEnabled
   updateSettings({ musicEnabled: next })
-  // Only start immediately when an answering session is active.
-  // Otherwise it stays off until the next question is answered.
+  // Saat dinonaktifkan, hentikan langsung. Saat diaktifkan, QuizView memilih
+  // track yang tepat (menu/game) lewat watcher-nya.
   if (!next) stopMusic()
-  else if (isAnswering.value) startMusic()
 }
 </script>
 
