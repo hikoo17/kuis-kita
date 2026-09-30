@@ -503,8 +503,8 @@ onBeforeUnmount(() => {
       </div>
 
       <p class="mt-3 text-xs font-semibold text-slate-400">
-        Pintasan keyboard: <span class="text-slate-500">A–D / 1–4</span> pilih jawaban ·
-        <span class="text-slate-500">Enter</span> kirim · <span class="text-slate-500">Spasi</span> lanjut ·
+        Pintasan keyboard: <span class="text-slate-500">Enter</span> kirim ·
+        <span class="text-slate-500">Spasi</span> lanjut ·
         <span class="text-slate-500">F</span> layar penuh
       </p>
     </section>
