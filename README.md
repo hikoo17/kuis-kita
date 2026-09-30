@@ -14,7 +14,8 @@ sedangkan kode, nama variabel, nama komponen, dan kolom database tetap Bahasa In
 - **Layar kuis untuk proyektor** — tipografi besar, tombol besar, mudah dibaca dari belakang kelas.
 - **Pilih Siswa** — kartu nama siswa dengan poin masing-masing.
 - **Pilih Materi** — daftar materi diambil otomatis dari tabel `questions`, plus opsi **Semua Materi**.
-- **Pilihan Ganda & Isian Singkat** — isian singkat bisa dikirim dengan tombol **Enter**.
+- **Pilihan Ganda & Isian Singkat** — pilihan ganda bisa berisi **lebih dari 4 pilihan** (A, B, C, D, E, ...)
+  dan dipilih dengan klik; isian singkat dikirim dengan tombol **Enter**.
 - **Pemeriksaan jawaban yang toleran** — tidak membedakan huruf besar/kecil dan mengabaikan spasi di tepi
   (`Jakarta`, `jakarta`, ` JAKARTA ` dianggap sama).
 - **Umpan balik gaya game show** — overlay **Benar! +10 Poin** dengan konfeti ringan,
@@ -135,7 +136,8 @@ src/
 │   ├── ClassSelector.vue       # kartu pilih kelas
 │   ├── SubjectSelector.vue     # kartu pilih materi
 │   ├── QuestionCard.vue        # wadah teks soal + gambar soal
-│   ├── MultipleChoice.vue      # tombol A/B/C/D
+│   ├── MatrixText.vue          # menampilkan matriks bertumpuk dari teks soal
+│   ├── MultipleChoice.vue      # tombol pilihan A, B, C, D, ... (bisa lebih dari 4)
 │   ├── ShortAnswer.vue         # input jawaban singkat
 │   ├── AnswerFeedback.vue      # overlay Benar! / Belum Tepat!
 │   ├── Leaderboard.vue         # daftar papan skor (samping soal & hasil akhir)
@@ -164,6 +166,7 @@ src/
 │   ├── useConfirm.js           # dialog konfirmasi (mis. keluar di tengah kuis)
 │   └── useAdminAuth.js         # sesi login guru
 ├── lib/
+│   ├── matrixText.js           # memecah teks soal + matriks untuk ditampilkan
 │   └── supabaseClient.js
 ├── router/
 │   └── index.js
@@ -259,6 +262,17 @@ TINGKAT 2 — soal di dalam materi itu (+ form Tambah Soal)
 > jalankan sekali file **`supabase/migration_subjects.sql`** di SQL Editor (materi yang sudah
 > dipakai soal lama akan diisi otomatis). Selama migrasi belum dijalankan, aplikasi tetap jalan
 > dengan daftar materi turunan dari soal — hanya tambah/edit/hapus materi yang nonaktif.
+
+### Menulis matriks pada soal
+
+Ada dua cara menampilkan matriks pada soal:
+
+1. **Lampirkan gambar** (dipakai soal Matriks saat ini) — buat gambar matriks (mis. `P = [ ... ]`),
+   lalu unggah lewat kolom **Gambar Soal** di form soal. Gambar tampil di bawah pertanyaan.
+2. **Tulis notasi** `[[1, 4, 7], [2, 5, 8]]` di teks soal — aplikasi otomatis merendernya menjadi
+   matriks bertumpuk lengkap dengan tanda kurung, baik saat kuis maupun di daftar soal.
+
+Keduanya membuat siswa tidak bingung membaca deretan angka.
 
 ### Gambar soal
 

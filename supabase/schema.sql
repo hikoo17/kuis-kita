@@ -410,23 +410,72 @@ select * from (
     (
       'Matriks',
       'multiple_choice',
-      'Jika A = [[2, 1], [3, 4]], berapakah nilai determinan A?',
-      '[{"label":"A","text":"2"},{"label":"B","text":"5"},{"label":"C","text":"8"},{"label":"D","text":"11"}]'::jsonb,
+      'Susunan bilangan, simbol, atau ekspresi yang diatur dalam baris dan kolom sehingga membentuk suatu jajaran persegi atau persegi panjang disebut ...',
+      '[{"label":"A","text":"Vektor"},{"label":"B","text":"Matriks"},{"label":"C","text":"Determinan"},{"label":"D","text":"Skalar"},{"label":"E","text":"Relasi"}]'::jsonb,
       'B'
     ),
     (
       'Matriks',
       'multiple_choice',
-      'Ordo matriks [[1, 2, 3], [4, 5, 6]] adalah ...',
-      '[{"label":"A","text":"2 x 3"},{"label":"B","text":"3 x 2"},{"label":"C","text":"2 x 2"},{"label":"D","text":"3 x 3"}]'::jsonb,
+      'Manakah pernyataan di bawah ini yang paling tepat menggambarkan definisi dari matriks?',
+      '[{"label":"A","text":"Himpunan pasangan terurut dari bilangan real."},{"label":"B","text":"Susunan bilangan, simbol, atau ekspresi yang diatur dalam baris dan kolom hingga membentuk jajaran berbentuk persegi atau persegi panjang."},{"label":"C","text":"Hasil kali skalar dari dua buah vektor berbentuk lingkaran."},{"label":"D","text":"Kumpulan angka yang disusun secara acak tanpa aturan baris dan kolom."},{"label":"E","text":"Garis lurus yang menghubungkan dua titik koordinat pada bidang Cartesius."}]'::jsonb,
+      'B'
+    ),
+    (
+      'Matriks',
+      'multiple_choice',
+      'Secara umum, sebuah matriks dilambangkan atau dinamai menggunakan ...',
+      '[{"label":"A","text":"Huruf kapital (seperti A, B, C)"},{"label":"B","text":"Huruf kecil bergaris bawah"},{"label":"C","text":"Angka romawi"},{"label":"D","text":"Simbol Yunani kecil"},{"label":"E","text":"Tanda kurung kurawal"}]'::jsonb,
       'A'
     ),
     (
       'Matriks',
-      'short_answer',
-      'Hasil dari 3 + 4 x 2 adalah ...',
-      null,
-      '11'
+      'multiple_choice',
+      'Diketahui matriks P = [[1, 4, 7], [2, 5, 8]], maka ordo dari matriks P adalah ...',
+      '[{"label":"A","text":"3 × 2"},{"label":"B","text":"2 × 3"},{"label":"C","text":"2 × 2"},{"label":"D","text":"3 × 3"},{"label":"E","text":"6"}]'::jsonb,
+      'B'
+    ),
+    (
+      'Matriks',
+      'multiple_choice',
+      'Diketahui matriks Q = [[3, -1, 4], [0, 8, 6], [5, 2, 9]]. Nilai elemen pada baris ke-2 dan kolom ke-3 (q₂₃) adalah ...',
+      '[{"label":"A","text":"-1"},{"label":"B","text":"0"},{"label":"C","text":"8"},{"label":"D","text":"6"},{"label":"E","text":"2"}]'::jsonb,
+      'D'
+    ),
+    (
+      'Matriks',
+      'multiple_choice',
+      'Diketahui matriks R = [[10, 15], [20, 25], [30, 35]]. Hasil penjumlahan elemen r₁₂ dan r₃₁ adalah ...',
+      '[{"label":"A","text":"15 + 20 = 35"},{"label":"B","text":"10 + 30 = 40"},{"label":"C","text":"15 + 30 = 45"},{"label":"D","text":"20 + 35 = 55"},{"label":"E","text":"25 + 30 = 55"}]'::jsonb,
+      'C'
+    ),
+    (
+      'Matriks',
+      'multiple_choice',
+      'Matriks yang hanya terdiri dari satu kolom saja dinamakan ...',
+      '[{"label":"A","text":"Matriks baris"},{"label":"B","text":"Matriks kolom"},{"label":"C","text":"Matriks nol"},{"label":"D","text":"Matriks identitas"},{"label":"E","text":"Matriks persegi"}]'::jsonb,
+      'B'
+    ),
+    (
+      'Matriks',
+      'multiple_choice',
+      'Matriks persegi yang semua elemen diagonal utamanya bernilai 1 dan elemen lainnya bernilai 0 disebut ...',
+      '[{"label":"A","text":"Matriks Skalar"},{"label":"B","text":"Matriks Nol"},{"label":"C","text":"Matriks Identitas"},{"label":"D","text":"Matriks Diagonal"},{"label":"E","text":"Matriks Simetris"}]'::jsonb,
+      'C'
+    ),
+    (
+      'Matriks',
+      'multiple_choice',
+      'Matriks berordo n × n yang memiliki jumlah baris sama dengan jumlah kolomnya disebut ...',
+      '[{"label":"A","text":"Matriks Persegi"},{"label":"B","text":"Matriks Persegi Panjang"},{"label":"C","text":"Matriks Baris"},{"label":"D","text":"Matriks Segitiga"},{"label":"E","text":"Matriks Nol"}]'::jsonb,
+      'A'
+    ),
+    (
+      'Matriks',
+      'multiple_choice',
+      'Diketahui matriks segitiga atas M = [[4, 7, 2], [0, k, 5], [0, 0, 1]]. Agar M memenuhi syarat sebagai matriks segitiga atas, ciri utama elemen-elemen yang berada di bawah diagonal utamanya (seperti m₂₁, m₃₁, dan m₃₂) harus bernilai ...',
+      '[{"label":"A","text":"Selalu bernilai 1"},{"label":"B","text":"Selalu bernilai 0"},{"label":"C","text":"Lebih besar dari elemen diagonal utama"},{"label":"D","text":"Bilangan negatif"},{"label":"E","text":"Sama dengan elemen di atas diagonal utama"}]'::jsonb,
+      'B'
     ),
     (
       'Aljabar',

@@ -387,20 +387,9 @@ function onQuizKeydown(event) {
     return
   }
 
-  // Pilihan ganda: huruf A-D atau angka 1-4 untuk memilih jawaban.
-  if (isMultipleChoice.value) {
-    const options = displayOptions.value
-    const index = Number(key) - 1
-    const target =
-      Number.isInteger(index) && index >= 0 && index < options.length
-        ? options[index]
-        : options.find((option) => String(option.label).toUpperCase() === key.toUpperCase())
-    if (target) {
-      event.preventDefault()
-      onSelectOption(target.label)
-      return
-    }
-  }
+  // Pilihan ganda: jawaban hanya dipilih lewat klik/tap.
+  // Pintasan papan tombol sengaja tidak ada (baik huruf A-D maupun angka 1-4),
+  // supaya tidak bentrok saat pilihan jawaban lebih dari 4.
 
   // Enter: kirim jawaban yang sudah dipilih (pilihan ganda).
   if (key === 'Enter' && isMultipleChoice.value && pendingAnswer.value) {

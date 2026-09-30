@@ -1,4 +1,6 @@
 <script setup>
+import MatrixText from '@/components/MatrixText.vue'
+
 defineProps({
   question: { type: Object, required: true },
   questionNumber: { type: Number, default: 1 },
@@ -27,7 +29,7 @@ defineProps({
     </header>
 
     <h2 class="mt-6 text-2xl font-extrabold leading-snug text-slate-900 preserve-lines sm:text-3xl lg:text-4xl">
-      {{ question.question_text }}
+      <MatrixText :text="question.question_text" />
     </h2>
 
     <img

@@ -29,6 +29,7 @@ import { useClasses } from '@/composables/useClasses'
 import { useSubjectScores } from '@/composables/useSubjectScores'
 import { useQuizSessions } from '@/composables/useQuizSessions'
 import ConfirmModal from '@/components/ConfirmModal.vue'
+import MatrixText from '@/components/MatrixText.vue'
 import InfoButton from '@/components/InfoButton.vue'
 import InfoModal from '@/components/InfoModal.vue'
 import { downloadCsv, datedFilename } from '@/lib/exportCsv'
@@ -497,6 +498,39 @@ const imagePreview = computed(() => imagePreviewUrl.value || form.image_url || '
 const isMultipleChoiceForm = computed(() => form.type === 'multiple_choice')
 const availableLabels = computed(() => form.options.map((option) => option.label))
 
+/** Batas pilihan jawaban (mendukung lebih dari 4 pilihan). */
+const MAX_OPTIONS = 10
+
+/** Label berikutnya yang belum terpakai: A, B, C, ... */
+function nextOptionLabel() {
+  for (let code = 65; code <= 90; code += 1) {
+    const label = String.fromCharCode(code)
+    if (!form.options.some((option) => option.label === label)) return label
+  }
+  return ''
+}
+
+/** Tambah satu pilihan jawaban baru (E, F, ...). */
+function addOption() {
+  if (form.options.length >= MAX_OPTIONS) {
+    showToast(`Maksimal ${MAX_OPTIONS} pilihan jawaban.`, 'error')
+    return
+  }
+  const label = nextOptionLabel()
+  if (!label) return
+  form.options.push({ label, text: '' })
+}
+
+/** Hapus satu pilihan jawaban (sisakan minimal 2). */
+function removeOption(label) {
+  if (form.options.length <= 2) {
+    showToast('Minimal 2 pilihan jawaban.', 'error')
+    return
+  }
+  form.options = form.options.filter((option) => option.label !== label)
+  if (form.correct_answer === label) form.correct_answer = ''
+}
+
 /** Bersihkan status gambar tanpa menyentuh berkas yang sudah tersimpan di server. */
 function clearImageState() {
   if (imagePreviewUrl.value) URL.revokeObjectURL(imagePreviewUrl.value)
@@ -591,15 +625,15 @@ function startEdit(question) {
   form.correct_answer = question.correct_answer
   form.image_url = question.image_url ?? ''
 
-  const base = emptyForm().options
   const existing = Array.isArray(question.options) ? question.options : []
-  form.options = base.map((option) => {
-    const found = existing.find((item) => item.label === option.label)
-    return found ? { label: option.label, text: found.text ?? '' } : option
-  })
+  const source = existing.length > 0 ? existing : emptyForm().options
+  form.options = source.map((option) => ({
+    label: String(option.label ?? '').trim().toUpperCase(),
+    text: String(option.text ?? ''),
+  }))
 
-  // Make sure an existing label outside A-D is still selectable.
-  if (question.type === 'multiple_choice' && !form.options.some((o) => o.label === form.correct_answer)) {
+  // Pastikan label kunci jawaban tetap ada (mis. soal lama dengan label di luar A-D).
+  if (question.type === 'multiple_choice' && form.correct_answer && !form.options.some((o) => o.label === form.correct_answer)) {
     form.options.push({ label: form.correct_answer, text: '' })
   }
 
@@ -1468,12 +1502,33 @@ onMounted(async () => {
             </div>
 
             <div v-if="isMultipleChoiceForm" class="space-y-3">
-              <p class="label mb-0">Pilihan Jawaban</p>
+              <div class="flex items-center justify-between gap-3">
+                <p class="label mb-0">Pilihan Jawaban</p>
+                <button
+                  type="button"
+                  class="btn-ghost !text-brand-600"
+                  :disabled="form.options.length >= MAX_OPTIONS"
+                  @click="addOption"
+                >
+                  <Plus class="h-4 w-4" aria-hidden="true" />
+                  Tambah Pilihan
+                </button>
+              </div>
               <div v-for="option in form.options" :key="option.label" class="flex items-center gap-3">
                 <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-50 font-extrabold text-brand-700">
                   {{ option.label }}
                 </span>
                 <input v-model="option.text" type="text" class="input flex-1" :placeholder="`Pilihan ${option.label}...`" />
+                <button
+                  type="button"
+                  class="icon-btn-danger"
+                  :disabled="form.options.length <= 2"
+                  :title="`Hapus pilihan ${option.label}`"
+                  :aria-label="`Hapus pilihan ${option.label}`"
+                  @click="removeOption(option.label)"
+                >
+                  <X class="h-5 w-5" aria-hidden="true" />
+                </button>
               </div>
             </div>
 
@@ -1544,7 +1599,7 @@ onMounted(async () => {
                 <span class="chip bg-emerald-100 text-emerald-700">Kunci: {{ question.correct_answer }}</span>
               </div>
 
-              <p class="mt-3 font-bold text-slate-800 preserve-lines">{{ question.question_text }}</p>
+              <MatrixText class="mt-3 block font-bold text-slate-800" :text="question.question_text" />
 
               <img
                 v-if="question.image_url"
