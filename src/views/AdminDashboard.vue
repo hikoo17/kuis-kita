@@ -1588,7 +1588,7 @@ onMounted(async () => {
     <!-- ============================ RIWAYAT ============================ -->
     <section v-else-if="activeTab === 'history'" class="mt-6 space-y-6 animate-fade-in">
       <div class="card">
-        <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="mb-2 flex flex-wrap items-center justify-between gap-3">
           <div class="flex items-center gap-2">
             <h2 class="text-xl font-extrabold text-slate-900">Riwayat Game</h2>
             <InfoButton
