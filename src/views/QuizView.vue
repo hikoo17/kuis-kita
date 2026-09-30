@@ -125,11 +125,9 @@ const {
 } = useQuiz()
 
 // Countdown overlay shown before answering.
-// Set after a subject is picked (game start); each student pick
-// also counts down, except the first pick which follows the
-// subject countdown directly (no double countdown back to back).
+// Appears after a subject is picked (game start) and again every time
+// a student is picked to answer.
 const showCountdown = ref(false)
-const skipCountdownOnce = ref(false)
 
 // The option the student clicked, before pressing "KIRIM JAWABAN".
 const pendingAnswer = ref('')
@@ -167,7 +165,6 @@ async function onSelectSubject(subject) {
   isLoadingQuiz.value = false
   if (totalQuestions.value > 0) {
     // Game start: count down right after the subject is picked.
-    skipCountdownOnce.value = true
     showCountdown.value = true
   }
 }
@@ -180,15 +177,8 @@ function onSelectClass(schoolClass) {
 function onSelectStudent(student) {
   play('select')
   selectStudent(student)
-  if (skipCountdownOnce.value) {
-    // Right after the subject countdown: start answering directly
-    // instead of counting down twice back to back.
-    // (Music starts by itself through the answering watcher.)
-    skipCountdownOnce.value = false
-    startTimer()
-  } else {
-    showCountdown.value = true
-  }
+  // Tampilkan hitung mundur lagi setiap kali siswa dipilih.
+  showCountdown.value = true
 }
 
 function onCountdownDone() {
@@ -309,7 +299,6 @@ async function onFinishBack() {
 function closeFinished() {
   pendingAnswer.value = ''
   showCountdown.value = false
-  skipCountdownOnce.value = false
   finishedResults.value = []
   hasArchived.value = false
   restart()
