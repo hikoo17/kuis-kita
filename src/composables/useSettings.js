@@ -8,9 +8,9 @@ export const DEFAULT_SETTINGS = {
   shuffleQuestions: true,
   shuffleOptions: false,
   soundEnabled: true,
-  soundVolume: 70,
+  soundVolume: 85,
   musicEnabled: true,
-  musicVolume: 45,
+  musicVolume: 60,
   answerTimeLimit: 30,
 }
 

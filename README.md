@@ -30,7 +30,7 @@ sedangkan kode, nama variabel, nama komponen, dan kolom database tetap Bahasa In
 - **Papan Skor** — peringkat otomatis, podium juara, dan pembaruan **Realtime** dari Supabase.
 - **Arsip otomatis** — begitu kuis selesai (soal terakhir selesai dikerjakan), hasil akhir
   (peringkat kelas itu) langsung tersimpan di tab **Riwayat**, lalu poin kelas dinol-kan untuk
-  game berikutnya. Games yang belum selesai **tidak** diarsipkan. Tidak ada skor lama yang hilang diam-diam.
+  game berikutnya. Games yang belum selesai **tidak** diarsipkan dan poinnya ikut direset.
 - **Gambar soal (opsional)** — guru bisa melampirkan gambar (JPG/PNG/WebP, maks 5 MB) pada soal;
   gambar tersimpan di Supabase Storage dan ikut tampil saat kuis berjalan.
 - **Streak ringan** — `🔥 3 Streak!` selama sesi kuis (tidak disimpan ke database).
@@ -225,7 +225,8 @@ Game otomatis diarsipkan ke Riwayat → poin kelas dinol-kan → tombol "Kembali
 Poin **hanya** ditambahkan saat jawaban benar, dan dilakukan di dalam satu transaksi
 database (`increment_student_score`) sehingga klik ganda tidak bisa menambah poin dua kali.
 Selama jawaban diproses, tombol jawaban dinonaktifkan. Games yang belum selesai (guru keluar
-di tengah kuis) tidak diarsipkan; tombol "Kembali" di tengah kuis meminta konfirmasi dulu.
+di tengah kuis) tidak diarsipkan dan poin game itu direset; tombol "Kembali" di tengah kuis
+meminta konfirmasi dulu.
 
 ---
 

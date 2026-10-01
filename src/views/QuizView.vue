@@ -316,8 +316,21 @@ function closeFinished() {
 }
 
 /** Back to subject selection (e.g. the wrong subject was picked). */
-function onBackToSubject() {
+async function onBackToSubject() {
+  // Keluar di tengah kuis = game hangus: poin yang sudah diperoleh di game
+  // ini direset dan tidak masuk Riwayat. Hanya kuis yang selesai yang tersimpan.
+  const classId = selectedClass.value?.id ?? null
+  if (classId) {
+    try {
+      await resetClassScores(classId)
+      await fetchSubjectScores()
+    } catch (err) {
+      quizError.value = err.message || 'Poin game ini belum berhasil direset. Silakan coba lagi.'
+      return
+    }
+  }
   pendingAnswer.value = ''
+  stopTimer()
   backToSubject()
   stopMusic()
   play('click')
@@ -344,8 +357,8 @@ function requestBackToSubject() {
     {
       title: 'Tinggalkan Kuis?',
       message:
-        'Kuis yang sedang berjalan belum selesai dan tidak akan tersimpan di Riwayat. ' +
-        'Yakin ingin kembali ke pilihan materi?',
+        'Kuis yang sedang berjalan belum selesai: poin yang sudah diperoleh akan direset ' +
+        'dan tidak akan tersimpan di Riwayat. Yakin ingin kembali ke pilihan materi?',
       confirmLabel: 'Ya, Kembali',
       cancelLabel: 'Lanjut Main',
       variant: 'danger',

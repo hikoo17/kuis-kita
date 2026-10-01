@@ -198,8 +198,10 @@ function toggleMusic() {
           <template v-if="isAdmin">
             <RouterLink
               to="/"
-              class="rounded-xl px-3 py-2 text-slate-600 transition hover:bg-slate-100 hover:text-brand-700"
-              active-class="bg-brand-50 text-brand-700"
+              class="rounded-xl px-3 py-2 transition"
+              :class="route.path === '/'
+                ? 'bg-brand-50 text-brand-700'
+                : 'text-slate-600 hover:bg-slate-100 hover:text-brand-700'"
             >
               Kuis
             </RouterLink>
@@ -321,8 +323,8 @@ function toggleMusic() {
       <div class="mx-auto flex max-w-7xl items-stretch">
         <RouterLink
           to="/"
-          class="flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-bold text-slate-600 transition"
-          active-class="text-brand-700"
+          class="m-1 flex flex-1 flex-col items-center gap-0.5 rounded-2xl py-2 text-[11px] font-bold transition"
+          :class="route.path === '/' ? 'bg-brand-50 text-brand-700' : 'text-slate-600'"
         >
           <Home :size="20" aria-hidden="true" />
           <span>Kuis</span>
@@ -330,8 +332,8 @@ function toggleMusic() {
 
         <RouterLink
           :to="isAdmin ? '/admin/dashboard' : '/admin'"
-          class="flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-bold transition"
-          :class="isDashboardSection ? 'text-brand-700' : 'text-slate-600'"
+          class="m-1 flex flex-1 flex-col items-center gap-0.5 rounded-2xl py-2 text-[11px] font-bold transition"
+          :class="isDashboardSection ? 'bg-brand-50 text-brand-700' : 'text-slate-600'"
         >
           <component :is="isAdmin ? LayoutDashboard : LogIn" :size="20" aria-hidden="true" />
           <span>{{ isAdmin ? 'Dashboard' : 'Login' }}</span>
