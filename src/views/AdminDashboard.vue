@@ -1033,7 +1033,6 @@ onMounted(async () => {
 
         <form class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end" @submit.prevent="handleAddClass">
           <div class="flex-1">
-            <label class="label" for="new-class-name">Nama Kelas</label>
             <input
               id="new-class-name"
               v-model="newClassName"
@@ -1041,6 +1040,7 @@ onMounted(async () => {
               class="input"
               placeholder="Masukkan nama kelas, contoh: X-1"
               maxlength="60"
+              aria-label="Nama kelas baru"
             />
           </div>
           <button type="submit" class="btn-primary w-full whitespace-nowrap sm:w-auto" :disabled="isAddingClass">
