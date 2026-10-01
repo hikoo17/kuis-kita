@@ -1837,10 +1837,11 @@ onMounted(async () => {
               <button
                 v-if="historyDateFrom || historyDateTo"
                 type="button"
-                class="btn-ghost col-span-2 justify-self-start"
+                class="btn-neutral col-span-2 w-full !py-3 !text-base sm:w-auto"
                 @click="clearHistoryDate"
               >
-                Bersihkan
+                <X :size="18" aria-hidden="true" />
+                Bersihkan Filter
               </button>
             </div>
           </div>
