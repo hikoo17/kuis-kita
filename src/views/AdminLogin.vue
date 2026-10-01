@@ -13,9 +13,6 @@ const pin = ref('')
 const errorMessage = ref('')
 const isSubmitting = ref(false)
 
-const isDev = import.meta.env.DEV
-const defaultPin = import.meta.env.VITE_ADMIN_PIN || '1234'
-
 function submit() {
   errorMessage.value = ''
   if (!pin.value.trim()) {
@@ -88,10 +85,6 @@ onMounted(() => {
               {{ isSubmitting ? 'Memeriksa...' : 'Masuk' }}
             </button>
           </form>
-
-          <p v-if="isDev" class="mt-6 rounded-2xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-500">
-            Mode pengembangan — PIN bawaan: <span class="font-extrabold text-slate-700">{{ defaultPin }}</span>
-          </p>
         </div>
       </div>
     </div>

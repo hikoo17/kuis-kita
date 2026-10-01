@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
-import { ChevronDown, Home, LayoutDashboard, LogIn, LogOut, Maximize, Minimize, Music, Target, User, Volume2, VolumeX } from '@lucide/vue'
+import { ChevronDown, Home, LayoutDashboard, LogIn, LogOut, Maximize, Minimize, Music, Settings, Target, User, Volume2, VolumeX } from '@lucide/vue'
 import { useAdminAuth } from '@/composables/useAdminAuth'
 import { isAnswering } from '@/composables/useQuiz'
 import { useSettings } from '@/composables/useSettings'
@@ -15,9 +15,19 @@ const { isAdmin, logout } = useAdminAuth()
 const { isFullscreen, toggleFullscreen } = useFullscreen()
 const router = useRouter()
 const showAdminMenu = ref(false)
+const showMobilePanel = ref(null) // 'controls' | 'admin' | null
+
+function toggleMobilePanel(name) {
+  showMobilePanel.value = showMobilePanel.value === name ? null : name
+}
+
+function closeMobilePanels() {
+  showMobilePanel.value = null
+}
 
 function handleLogout() {
   showAdminMenu.value = false
+  closeMobilePanels()
   logout()
   router.push('/admin')
 }
@@ -86,51 +96,101 @@ function toggleMusic() {
           <span>KuisKita</span>
         </RouterLink>
 
-        <!-- Kontrol mobile: ikon perbesar & suara di kanan navbar atas. -->
-        <div class="flex items-center gap-1 sm:hidden">
-          <button
-            type="button"
-            class="rounded-xl px-2.5 py-2 text-lg leading-none text-slate-600 transition hover:bg-slate-100
-                   focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-200"
-            :title="fullscreenLabel"
-            :aria-label="fullscreenLabel"
-            :aria-pressed="isFullscreen"
-            @click="toggleFullscreen"
-          >
-            <component :is="isFullscreen ? Minimize : Maximize" :size="20" aria-hidden="true" />
-          </button>
+        <!-- Mobile: satu tombol panel kontrol + profil admin di kanan navbar. -->
+        <div class="flex items-center gap-1 sm:hidden" @keydown.escape="closeMobilePanels">
+          <!-- Panel kontrol: layar, suara, musik -->
+          <div class="relative">
+            <button
+              type="button"
+              class="rounded-xl px-2.5 py-2 text-lg leading-none transition hover:bg-slate-100
+                     focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-200"
+              :class="showMobilePanel === 'controls' ? 'bg-brand-50 text-brand-700' : 'text-slate-600'"
+              title="Pengaturan suara dan layar"
+              aria-label="Pengaturan suara dan layar"
+              :aria-expanded="showMobilePanel === 'controls'"
+              aria-haspopup="menu"
+              @click="toggleMobilePanel('controls')"
+            >
+              <Settings :size="20" aria-hidden="true" />
+            </button>
+            <div
+              v-if="showMobilePanel === 'controls'"
+              role="menu"
+              class="absolute right-0 z-50 mt-2 w-56 overflow-hidden rounded-2xl bg-white py-1.5 shadow-card-hover ring-1 ring-slate-200"
+            >
+              <button
+                type="button"
+                role="menuitem"
+                class="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-bold text-slate-700 transition hover:bg-slate-100"
+                @click="toggleFullscreen(); closeMobilePanels()"
+              >
+                <component :is="isFullscreen ? Minimize : Maximize" :size="18" aria-hidden="true" />
+                <span class="flex-1">Layar Penuh</span>
+                <span class="text-xs font-bold" :class="isFullscreen ? 'text-brand-600' : 'text-slate-300'">
+                  {{ isFullscreen ? 'Aktif' : 'Mati' }}
+                </span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                class="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-bold text-slate-700 transition hover:bg-slate-100"
+                @click="toggleSound"
+              >
+                <component :is="soundIcon" :size="18" aria-hidden="true" />
+                <span class="flex-1">Efek Suara</span>
+                <span class="text-xs font-bold" :class="settings.soundEnabled ? 'text-brand-600' : 'text-slate-300'">
+                  {{ settings.soundEnabled ? 'Aktif' : 'Mati' }}
+                </span>
+              </button>
+              <button
+                v-if="isAnswering"
+                type="button"
+                role="menuitem"
+                class="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-bold text-slate-700 transition hover:bg-slate-100"
+                @click="toggleMusic"
+              >
+                <Music :size="18" aria-hidden="true" />
+                <span class="flex-1">Musik Latar</span>
+                <span class="text-xs font-bold" :class="settings.musicEnabled ? 'text-brand-600' : 'text-slate-300'">
+                  {{ settings.musicEnabled ? 'Aktif' : 'Mati' }}
+                </span>
+              </button>
+            </div>
+          </div>
 
-          <button
-            type="button"
-            class="rounded-xl px-2.5 py-2 text-lg leading-none transition hover:bg-slate-100
-                   focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-200"
-            :class="settings.soundEnabled ? 'text-slate-700' : 'text-slate-300'"
-            :title="soundLabel"
-            :aria-label="soundLabel"
-            :aria-pressed="settings.soundEnabled"
-            @click="toggleSound"
-          >
-            <component :is="soundIcon" :size="20" aria-hidden="true" />
-          </button>
-
-          <button
-            v-if="isAnswering"
-            type="button"
-            class="rounded-xl px-2.5 py-2 text-lg leading-none transition hover:bg-slate-100
-                   focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-200"
-            :class="settings.musicEnabled ? 'text-slate-700' : 'text-slate-300'"
-            :title="musicLabel"
-            :aria-label="musicLabel"
-            :aria-pressed="settings.musicEnabled"
-            @click="toggleMusic"
-          >
-            <Music
-              :size="20"
-              aria-hidden="true"
-              :class="settings.musicEnabled ? '' : 'opacity-40'"
-              :stroke-width="settings.musicEnabled ? 2 : 1.5"
-            />
-          </button>
+          <!-- Profil admin + logout -->
+          <div v-if="isAdmin" class="relative">
+            <button
+              type="button"
+              class="flex items-center gap-0.5 rounded-xl px-2 py-2 text-slate-600 transition hover:bg-slate-100
+                     focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-200"
+              title="Menu admin"
+              aria-label="Menu admin"
+              :aria-expanded="showMobilePanel === 'admin'"
+              aria-haspopup="menu"
+              @click="toggleMobilePanel('admin')"
+            >
+              <span class="flex h-7 w-7 items-center justify-center rounded-full bg-brand-100 text-brand-700">
+                <User :size="16" aria-hidden="true" />
+              </span>
+              <ChevronDown :size="14" aria-hidden="true" />
+            </button>
+            <div
+              v-if="showMobilePanel === 'admin'"
+              role="menu"
+              class="absolute right-0 z-50 mt-2 w-44 overflow-hidden rounded-2xl bg-white py-1.5 shadow-card-hover ring-1 ring-slate-200"
+            >
+              <button
+                type="button"
+                role="menuitem"
+                class="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold text-red-600 transition hover:bg-red-50"
+                @click="handleLogout"
+              >
+                <LogOut :size="16" aria-hidden="true" />
+                Logout
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- Menu utama: hanya tampil setelah guru masuk. -->
@@ -236,6 +296,13 @@ function toggleMusic() {
         </nav>
       </div>
     </header>
+
+    <!-- Penutup panel mobile saat ketuk area lain (di bawah header & bottom bar). -->
+    <div
+      v-if="showMobilePanel"
+      class="fixed inset-0 z-20 sm:hidden"
+      @click="closeMobilePanels"
+    ></div>
 
     <main class="flex-1">
       <RouterView />
