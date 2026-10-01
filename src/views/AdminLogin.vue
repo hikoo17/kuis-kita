@@ -40,7 +40,7 @@ function submit() {
 }
 
 onMounted(() => {
-  if (isAdminAuthenticated()) router.replace('/')
+  if (isAdminAuthenticated()) router.replace('/admin/dashboard')
 })
 </script>
 
@@ -53,7 +53,7 @@ onMounted(() => {
       <div class="absolute -right-10 top-1/3 h-40 w-40 rounded-full bg-accent-100 blur-3xl"></div>
     </div>
 
-    <div class="relative mx-auto flex min-h-[78vh] w-full max-w-md items-center justify-center px-4 py-12">
+    <div class="relative mx-auto flex min-h-[calc(100dvh-4rem)] w-full max-w-md items-center justify-center px-4 py-10">
       <div class="w-full animate-pop">
         <div class="card !p-8 text-center shadow-card-hover sm:!p-10">
           <span
@@ -93,11 +93,6 @@ onMounted(() => {
             Mode pengembangan — PIN bawaan: <span class="font-extrabold text-slate-700">{{ defaultPin }}</span>
           </p>
         </div>
-
-        <p class="mt-6 text-center text-xs leading-relaxed text-slate-400">
-          Halaman ini hanya proteksi sederhana di sisi klien. Untuk aplikasi produksi, gunakan
-          autentikasi Supabase Auth.
-        </p>
       </div>
     </div>
   </div>

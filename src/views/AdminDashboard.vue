@@ -972,6 +972,8 @@ onMounted(async () => {
       </button>
     </nav>
 
+    <div class="mt-5 hidden border-t border-slate-200 sm:block"></div>
+
     <!-- ========================= MENU UTAMA (mobile) ========================= -->
     <div class="mt-5 sm:hidden">
       <h2 class="text-xs font-extrabold uppercase tracking-[0.18em] text-slate-400">Menu Utama</h2>
@@ -1020,7 +1022,6 @@ onMounted(async () => {
         </p>
       </div>
 
-      <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
       <div v-if="!classesNeedMigration" class="card">
         <div class="flex items-center gap-2">
           <h2 class="text-xl font-extrabold text-slate-900">Tambah Kelas</h2>
@@ -1126,15 +1127,6 @@ onMounted(async () => {
                 </span>
                 <button
                   type="button"
-                  class="icon-btn-brand"
-                  :title="`Ubah nama kelas ${item.name}`"
-                  :aria-label="`Ubah nama kelas ${item.name}`"
-                  @click="startRenameClass(item, $event)"
-                >
-                  <Pencil :size="18" aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
                   class="btn-neutral whitespace-nowrap !px-3.5 !py-2 !text-sm"
                   :title="`Ubah nama kelas ${item.name}`"
                   :aria-label="`Ubah nama kelas ${item.name}`"
@@ -1156,7 +1148,6 @@ onMounted(async () => {
             </template>
           </li>
         </ul>
-      </div>
       </div>
     </section>
 
@@ -1251,21 +1242,23 @@ onMounted(async () => {
         </div>
 
         <ul v-else class="mt-4 space-y-3">
-          <li v-for="student in filteredStudents" :key="student.id" class="rounded-2xl bg-slate-50 p-3.5 ring-1 ring-slate-100">
-            <p class="truncate text-base font-extrabold text-slate-800">{{ student.name }}</p>
-            <div class="mt-2.5 flex flex-wrap items-center gap-2">
-              <select
-                :value="student.class_id ?? ''"
-                class="input w-auto flex-1 py-2 text-base sm:flex-none"
-                :aria-label="`Kelas ${student.name}`"
-                @change="handleMoveStudent(student, $event)"
-              >
-                <option value="" disabled>Pilih kelas...</option>
-                <option v-for="item in classList" :key="item.id" :value="item.id">{{ item.name }}</option>
-              </select>
-              <span class="chip bg-accent-100 text-accent-600">{{ student.score }} Poin</span>
+          <li v-for="student in filteredStudents" :key="student.id" class="rounded-2xl bg-slate-50 p-3.5 ring-1 ring-slate-100 sm:flex sm:items-center sm:gap-3">
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-base font-extrabold text-slate-800">{{ student.name }}</p>
+              <div class="mt-2 flex flex-wrap items-center gap-2">
+                <select
+                  :value="student.class_id ?? ''"
+                  class="input w-auto flex-1 py-2 text-base sm:max-w-48 sm:flex-none"
+                  :aria-label="`Kelas ${student.name}`"
+                  @change="handleMoveStudent(student, $event)"
+                >
+                  <option value="" disabled>Pilih kelas...</option>
+                  <option v-for="item in classList" :key="item.id" :value="item.id">{{ item.name }}</option>
+                </select>
+                <span class="chip bg-accent-100 text-accent-600">{{ student.score }} Poin</span>
+              </div>
             </div>
-            <div class="mt-2.5 flex gap-2">
+            <div class="mt-2.5 flex shrink-0 gap-2 sm:mt-0">
               <button
                 type="button"
                 class="icon-btn-brand"

@@ -144,7 +144,7 @@ function toggleMusic() {
               Kuis
             </RouterLink>
             <RouterLink
-              to="/admin"
+              :to="isAdmin ? '/admin/dashboard' : '/admin'"
               class="rounded-xl px-3 py-2 transition"
               :class="isDashboardSection
                 ? 'bg-brand-50 text-brand-700'
@@ -262,7 +262,7 @@ function toggleMusic() {
         </RouterLink>
 
         <RouterLink
-          to="/admin"
+          :to="isAdmin ? '/admin/dashboard' : '/admin'"
           class="flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-bold transition"
           :class="isDashboardSection ? 'text-brand-700' : 'text-slate-600'"
         >
