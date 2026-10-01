@@ -467,7 +467,7 @@ onBeforeUnmount(() => {
       <div class="mx-auto flex max-w-[1700px] items-center gap-3 px-4 py-2 lg:px-6">
         <button
           type="button"
-          class="btn-neutral !px-3.5 !py-2 !text-base shadow-none ring-1 ring-slate-200 hover:bg-slate-100"
+          class="btn-neutral !px-3.5 !py-2 !text-base !shadow-none !ring-0 hover:bg-slate-100"
           title="Kembali untuk ganti materi"
           @click="requestBackToSubject"
         >

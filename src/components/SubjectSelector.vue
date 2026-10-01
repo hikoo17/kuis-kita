@@ -19,12 +19,7 @@ function emojiFor(index) {
 
 <template>
   <section class="animate-fade-in">
-    <div class="text-center">
-      <h2 class="mt-4 text-3xl font-extrabold text-slate-900 sm:text-4xl">Pilih Materi</h2>
-      <p class="mt-2 text-lg text-slate-500">Materi mana yang mau kita kerjakan?</p>
-    </div>
-
-    <div class="mx-auto mt-6 max-w-3xl">
+    <div class="mx-auto max-w-3xl">
       <button
         type="button"
         class="btn-neutral !px-4 !py-2 !text-base shadow-card ring-0 hover:shadow-card-hover"
@@ -34,6 +29,11 @@ function emojiFor(index) {
         <ArrowLeft :size="18" aria-hidden="true" />
         Kembali
       </button>
+    </div>
+
+    <div class="mt-4 text-center">
+      <h2 class="text-3xl font-extrabold text-slate-900 sm:text-4xl">Pilih Materi</h2>
+      <p class="mt-2 text-lg text-slate-500">Materi mana yang mau kita kerjakan?</p>
     </div>
 
     <div v-if="error" class="mx-auto mt-8 max-w-xl rounded-3xl bg-red-50 p-6 text-center ring-1 ring-red-200">

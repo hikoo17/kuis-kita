@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
-import { Maximize, Minimize, Music, Target, Volume2, VolumeX } from '@lucide/vue'
+import { Home, LayoutDashboard, LogIn, Maximize, Minimize, Music, Target, Volume2, VolumeX } from '@lucide/vue'
 import { useAdminAuth } from '@/composables/useAdminAuth'
 import { isAnswering } from '@/composables/useQuiz'
 import { useSettings } from '@/composables/useSettings'
@@ -70,7 +70,7 @@ function toggleMusic() {
 </script>
 
 <template>
-  <div class="flex min-h-screen flex-col">
+  <div class="flex min-h-screen flex-col pb-24 sm:pb-0">
     <header class="sticky top-0 z-30 border-b border-slate-200/70 bg-white/80 shadow-card backdrop-blur">
       <div class="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4">
         <RouterLink to="/" class="flex items-center gap-2 text-xl font-extrabold text-brand-700">
@@ -78,7 +78,8 @@ function toggleMusic() {
           <span>KuisKita</span>
         </RouterLink>
 
-        <nav class="flex items-center gap-1 text-sm font-bold">
+        <!-- Menu desktop (di layar kecil diganti bottom bar). -->
+        <nav class="hidden items-center gap-1 text-sm font-bold sm:flex">
           <RouterLink
             to="/"
             class="rounded-xl px-3 py-2 text-slate-600 transition hover:bg-slate-100 hover:text-brand-700"
@@ -150,8 +151,74 @@ function toggleMusic() {
       <RouterView />
     </main>
 
-    <footer class="border-t border-slate-200/70 py-4 text-center text-sm font-semibold text-slate-400">
+    <footer class="hidden border-t border-slate-200/70 py-4 text-center text-sm font-semibold text-slate-400 sm:block">
       KuisKita — belajar jadi seru 🎉
     </footer>
+
+    <!-- Menu untuk layar kecil: bottom bar -->
+    <nav
+      class="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur sm:hidden"
+      aria-label="Menu utama"
+    >
+      <div class="mx-auto flex max-w-7xl items-stretch">
+        <RouterLink
+          to="/"
+          class="flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-bold text-slate-600 transition"
+          active-class="text-brand-700"
+        >
+          <Home :size="20" aria-hidden="true" />
+          <span>Kuis</span>
+        </RouterLink>
+
+        <RouterLink
+          to="/admin"
+          class="flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-bold transition"
+          :class="isDashboardSection ? 'text-brand-700' : 'text-slate-600'"
+        >
+          <component :is="isAdmin ? LayoutDashboard : LogIn" :size="20" aria-hidden="true" />
+          <span>{{ isAdmin ? 'Dashboard' : 'Login' }}</span>
+        </RouterLink>
+
+        <button
+          type="button"
+          class="flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-bold transition
+                 focus:outline-none focus-visible:bg-slate-100"
+          :class="isFullscreen ? 'text-brand-700' : 'text-slate-600'"
+          :aria-label="fullscreenLabel"
+          :aria-pressed="isFullscreen"
+          @click="toggleFullscreen"
+        >
+          <component :is="isFullscreen ? Minimize : Maximize" :size="20" aria-hidden="true" />
+          <span>Layar</span>
+        </button>
+
+        <button
+          type="button"
+          class="flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-bold transition
+                 focus:outline-none focus-visible:bg-slate-100"
+          :class="settings.soundEnabled ? 'text-slate-600' : 'text-slate-300'"
+          :aria-label="soundLabel"
+          :aria-pressed="settings.soundEnabled"
+          @click="toggleSound"
+        >
+          <component :is="soundIcon" :size="20" aria-hidden="true" />
+          <span>Suara</span>
+        </button>
+
+        <button
+          v-if="isAnswering"
+          type="button"
+          class="flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-bold transition
+                 focus:outline-none focus-visible:bg-slate-100"
+          :class="settings.musicEnabled ? 'text-slate-600' : 'text-slate-300'"
+          :aria-label="musicLabel"
+          :aria-pressed="settings.musicEnabled"
+          @click="toggleMusic"
+        >
+          <Music :size="20" aria-hidden="true" />
+          <span>Musik</span>
+        </button>
+      </div>
+    </nav>
   </div>
 </template>
