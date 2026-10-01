@@ -46,6 +46,7 @@ const {
   fetchStudents,
   addStudent,
   deleteStudent,
+  renameStudent,
   updateStudentClass,
   resetStudentScore,
   resetAllScores,
@@ -254,6 +255,9 @@ function handleDeleteClass(item, event) {
 const newStudentName = ref('')
 const newStudentClassId = ref('')
 const isAddingStudent = ref(false)
+const editingStudentId = ref('')
+const editStudentName = ref('')
+const isSavingStudent = ref(false)
 // 'all' = every class, otherwise filter the list by class.
 const studentClassFilter = ref('all')
 const studentSearch = ref('')
@@ -305,6 +309,34 @@ async function handleMoveStudent(student, event) {
     showToast(`${student.name} dipindahkan ke kelas.`)
   } catch (err) {
     showToast(err.message, 'error')
+  }
+}
+
+function startRenameStudent(student) {
+  editingStudentId.value = student.id
+  editStudentName.value = student.name
+}
+
+function cancelRenameStudent() {
+  editingStudentId.value = ''
+  editStudentName.value = ''
+}
+
+async function handleRenameStudent() {
+  const trimmed = editStudentName.value.trim()
+  if (!trimmed) {
+    showToast('Nama siswa wajib diisi.', 'error')
+    return
+  }
+  isSavingStudent.value = true
+  try {
+    await renameStudent(editingStudentId.value, trimmed)
+    showToast('Nama siswa berhasil diubah.')
+    cancelRenameStudent()
+  } catch (err) {
+    showToast(err.message, 'error')
+  } finally {
+    isSavingStudent.value = false
   }
 }
 
@@ -1243,41 +1275,82 @@ onMounted(async () => {
 
         <ul v-else class="mt-4 space-y-3">
           <li v-for="student in filteredStudents" :key="student.id" class="rounded-2xl bg-slate-50 p-3.5 ring-1 ring-slate-100 sm:flex sm:items-center sm:gap-3">
-            <div class="min-w-0 flex-1">
-              <p class="truncate text-base font-extrabold text-slate-800">{{ student.name }}</p>
-              <div class="mt-2 flex flex-wrap items-center gap-2">
-                <select
-                  :value="student.class_id ?? ''"
-                  class="input w-auto flex-1 py-2 text-base sm:max-w-48 sm:flex-none"
-                  :aria-label="`Kelas ${student.name}`"
-                  @change="handleMoveStudent(student, $event)"
-                >
-                  <option value="" disabled>Pilih kelas...</option>
-                  <option v-for="item in classList" :key="item.id" :value="item.id">{{ item.name }}</option>
-                </select>
-                <span class="chip bg-accent-100 text-accent-600">{{ student.score }} Poin</span>
+            <template v-if="editingStudentId === student.id">
+              <div class="flex min-w-0 flex-1 flex-col gap-2">
+                <input
+                  v-model="editStudentName"
+                  type="text"
+                  class="input"
+                  maxlength="60"
+                  :aria-label="`Nama baru untuk ${student.name}`"
+                  @keydown.enter.prevent="handleRenameStudent"
+                  @keydown.esc="cancelRenameStudent"
+                />
+                <div class="flex gap-2">
+                  <button
+                    type="button"
+                    class="btn-primary flex-1 whitespace-nowrap !px-4 !py-2 !text-base"
+                    :disabled="isSavingStudent"
+                    @click="handleRenameStudent"
+                  >
+                    {{ isSavingStudent ? 'Menyimpan...' : 'Simpan' }}
+                  </button>
+                  <button
+                    type="button"
+                    class="btn-neutral flex-1 whitespace-nowrap !px-4 !py-2 !text-base"
+                    @click="cancelRenameStudent"
+                  >
+                    Batal
+                  </button>
+                </div>
               </div>
-            </div>
-            <div class="mt-2.5 flex shrink-0 gap-2 sm:mt-0">
-              <button
-                type="button"
-                class="icon-btn-brand"
-                :title="`Reset poin ${student.name}`"
-                :aria-label="`Reset poin ${student.name}`"
-                @click="handleResetStudent(student)"
-              >
-                <RotateCcw :size="18" aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                class="icon-btn-danger"
-                :title="`Hapus ${student.name}`"
-                :aria-label="`Hapus ${student.name}`"
-                @click="handleDeleteStudent(student)"
-              >
-                <Trash2 :size="18" aria-hidden="true" />
-              </button>
-            </div>
+            </template>
+            <template v-else>
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-base font-extrabold text-slate-800">{{ student.name }}</p>
+                <div class="mt-2 flex flex-wrap items-center gap-2">
+                  <select
+                    :value="student.class_id ?? ''"
+                    class="input w-auto flex-1 py-2 text-base sm:max-w-48 sm:flex-none"
+                    :aria-label="`Kelas ${student.name}`"
+                    @change="handleMoveStudent(student, $event)"
+                  >
+                    <option value="" disabled>Pilih kelas...</option>
+                    <option v-for="item in classList" :key="item.id" :value="item.id">{{ item.name }}</option>
+                  </select>
+                  <span class="chip bg-accent-100 text-accent-600">{{ student.score }} Poin</span>
+                </div>
+              </div>
+              <div class="mt-2.5 flex shrink-0 gap-2 sm:mt-0">
+                <button
+                  type="button"
+                  class="icon-btn-brand"
+                  :title="`Ubah nama ${student.name}`"
+                  :aria-label="`Ubah nama ${student.name}`"
+                  @click="startRenameStudent(student)"
+                >
+                  <Pencil :size="18" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  class="icon-btn-brand"
+                  :title="`Reset poin ${student.name}`"
+                  :aria-label="`Reset poin ${student.name}`"
+                  @click="handleResetStudent(student)"
+                >
+                  <RotateCcw :size="18" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  class="icon-btn-danger"
+                  :title="`Hapus ${student.name}`"
+                  :aria-label="`Hapus ${student.name}`"
+                  @click="handleDeleteStudent(student)"
+                >
+                  <Trash2 :size="18" aria-hidden="true" />
+                </button>
+              </div>
+            </template>
           </li>
         </ul>
       </div>

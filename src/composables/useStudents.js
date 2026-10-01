@@ -76,6 +76,30 @@ export function useStudents() {
     students.value = students.value.filter((student) => student.id !== id)
   }
 
+  async function renameStudent(id, name) {
+    const trimmed = String(name ?? '').trim()
+    if (!trimmed) throw new Error('Nama siswa wajib diisi.')
+
+    const { data, error: updateError } = await supabase
+      .from('students')
+      .update({ name: trimmed })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (updateError) {
+      // 23505 = unique_violation (nama sudah dipakai siswa lain di kelas ini).
+      if (updateError.code === '23505') throw new Error('Nama siswa itu sudah ada di kelas ini.')
+      console.error('[KuisKita] Gagal mengubah nama siswa:', updateError)
+      throw new Error('Nama siswa belum berhasil diubah. Silakan coba lagi.')
+    }
+
+    students.value = sortByName(
+      students.value.map((student) => (student.id === id ? data : student)),
+    )
+    return data
+  }
+
   /** Move a student to another class (scores move along untouched). */
   async function updateStudentClass(id, classId) {
     if (!classId) throw new Error('Pilih kelasnya dulu.')
@@ -200,6 +224,7 @@ export function useStudents() {
     fetchStudents,
     addStudent,
     deleteStudent,
+    renameStudent,
     updateStudentClass,
     resetStudentScore,
     resetAllScores,
