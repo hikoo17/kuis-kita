@@ -6,7 +6,7 @@ import AdminDashboard from '@/views/AdminDashboard.vue'
 import { isAdminAuthenticated } from '@/composables/useAdminAuth'
 
 const routes = [
-  { path: '/', name: 'quiz', component: QuizView, meta: { title: 'Kuis Kelas' } },
+  { path: '/', name: 'quiz', component: QuizView, meta: { title: 'Kuis Kelas', requiresAdmin: true } },
   { path: '/admin', name: 'admin-login', component: AdminLogin, meta: { title: 'Masuk Guru' } },
   {
     path: '/admin/dashboard',

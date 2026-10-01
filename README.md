@@ -80,8 +80,9 @@ npm install
 npm run dev
 ```
 
-Buka `http://localhost:5173`. Untuk guru, klik tombol **Login** (atau **Dashboard** kalau sudah
-masuk) di kanan header lalu masukkan PIN — halaman guru ada di `/admin` dan PIN bawaannya `1234`.
+Buka `http://localhost:5173`, lalu masukkan PIN guru (bawaan `1234`) untuk membuka
+menu **Kuis** dan **Dashboard**. Menu navigasi (atas di desktop, bar bawah di layar kecil)
+baru tampil setelah berhasil masuk.
 
 Untuk build produksi:
 

@@ -78,7 +78,7 @@ function toggleMusic() {
 </script>
 
 <template>
-  <div class="flex min-h-screen flex-col pb-24 sm:pb-0">
+  <div class="flex min-h-screen flex-col" :class="isAdmin ? 'pb-24 sm:pb-0' : ''">
     <header class="sticky top-0 z-30 border-b border-slate-200/70 bg-white/80 shadow-card backdrop-blur">
       <div class="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4">
         <RouterLink to="/" class="flex items-center gap-2 text-xl font-extrabold text-brand-700">
@@ -133,27 +133,29 @@ function toggleMusic() {
           </button>
         </div>
 
-        <!-- Menu desktop (di layar kecil diganti bottom bar). -->
+        <!-- Menu utama: hanya tampil setelah guru masuk. -->
         <nav class="hidden items-center gap-1 text-sm font-bold sm:flex">
-          <RouterLink
-            to="/"
-            class="rounded-xl px-3 py-2 text-slate-600 transition hover:bg-slate-100 hover:text-brand-700"
-            active-class="bg-brand-50 text-brand-700"
-          >
-            Kuis
-          </RouterLink>
-          <RouterLink
-            to="/admin"
-            class="rounded-xl px-3 py-2 transition"
-            :class="isDashboardSection
-              ? 'bg-brand-50 text-brand-700'
-              : 'text-slate-600 hover:bg-slate-100 hover:text-brand-700'"
-            :title="isAdmin ? 'Buka Dashboard Guru' : 'Masuk sebagai Guru'"
-          >
-            {{ isAdmin ? 'Dashboard' : 'Login' }}
-          </RouterLink>
-          <!-- Pemisah: menu | kontrol kelas -->
-          <span class="mx-1.5 hidden h-6 w-px bg-slate-200 sm:block" aria-hidden="true" />
+          <template v-if="isAdmin">
+            <RouterLink
+              to="/"
+              class="rounded-xl px-3 py-2 text-slate-600 transition hover:bg-slate-100 hover:text-brand-700"
+              active-class="bg-brand-50 text-brand-700"
+            >
+              Kuis
+            </RouterLink>
+            <RouterLink
+              to="/admin"
+              class="rounded-xl px-3 py-2 transition"
+              :class="isDashboardSection
+                ? 'bg-brand-50 text-brand-700'
+                : 'text-slate-600 hover:bg-slate-100 hover:text-brand-700'"
+              :title="isAdmin ? 'Buka Dashboard Guru' : 'Masuk sebagai Guru'"
+            >
+              {{ isAdmin ? 'Dashboard' : 'Login' }}
+            </RouterLink>
+            <!-- Pemisah: menu | kontrol kelas -->
+            <span class="mx-1.5 hidden h-6 w-px bg-slate-200 sm:block" aria-hidden="true" />
+          </template>
 
           <button
             type="button"
@@ -243,8 +245,9 @@ function toggleMusic() {
       KuisKita — belajar jadi seru 🎉
     </footer>
 
-    <!-- Menu untuk layar kecil: bottom bar -->
+    <!-- Menu untuk layar kecil: bottom bar (hanya setelah masuk). -->
     <nav
+      v-if="isAdmin"
       class="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 backdrop-blur sm:hidden"
       aria-label="Menu utama"
     >

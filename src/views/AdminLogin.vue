@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { Target } from '@lucide/vue'
 import { useAdminAuth, isAdminAuthenticated } from '@/composables/useAdminAuth'
 import { useSound } from '@/composables/useSound'
 
@@ -34,58 +35,69 @@ function submit() {
       return
     }
     play('success')
-    router.push('/admin/dashboard')
+    router.push('/')
   }, 250)
 }
 
 onMounted(() => {
-  if (isAdminAuthenticated()) router.replace('/admin/dashboard')
+  if (isAdminAuthenticated()) router.replace('/')
 })
 </script>
 
 <template>
-  <div class="flex min-h-[70vh] items-center justify-center px-4 py-10">
-    <div class="w-full max-w-md animate-pop">
-      <div class="card text-center">
-        <p class="text-5xl" aria-hidden="true">🔐</p>
-        <h1 class="mt-4 text-3xl font-extrabold text-slate-900">Masuk Guru</h1>
-        <p class="mt-2 text-lg text-slate-500">Masukkan PIN untuk melanjutkan</p>
+  <div class="relative overflow-hidden">
+    <!-- Latar dekoratif -->
+    <div aria-hidden="true" class="pointer-events-none absolute inset-0">
+      <div class="absolute -left-24 -top-24 h-72 w-72 rounded-full bg-brand-100 blur-3xl"></div>
+      <div class="absolute -bottom-28 -right-20 h-80 w-80 rounded-full bg-brand-100 blur-3xl"></div>
+      <div class="absolute -right-10 top-1/3 h-40 w-40 rounded-full bg-accent-100 blur-3xl"></div>
+    </div>
 
-        <form class="mt-8 space-y-4" @submit.prevent="submit">
-          <input
-            v-model="pin"
-            type="password"
-            inputmode="numeric"
-            class="w-full rounded-2xl border-2 border-slate-200 bg-slate-50 px-5 py-5 text-center text-3xl
-                   font-extrabold tracking-[0.4em] text-slate-800 placeholder:tracking-widest
-                   placeholder:text-slate-300 focus:border-brand-400 focus:bg-white focus:outline-none
-                   focus:ring-4 focus:ring-brand-100"
-            placeholder="••••"
-            aria-label="PIN Guru"
-            autocomplete="off"
-          />
+    <div class="relative mx-auto flex min-h-[78vh] w-full max-w-md items-center justify-center px-4 py-12">
+      <div class="w-full animate-pop">
+        <div class="card !p-8 text-center shadow-card-hover sm:!p-10">
+          <span
+            class="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br
+                   from-brand-500 to-brand-700 text-white shadow-card"
+          >
+            <Target :size="30" aria-hidden="true" />
+          </span>
+          <p class="mt-4 text-xs font-extrabold uppercase tracking-[0.22em] text-brand-600">KuisKita</p>
+          <h1 class="mt-2 text-3xl font-extrabold text-slate-900">Masuk Guru</h1>
+          <p class="mt-2 text-slate-500">Masukkan PIN untuk membuka menu kuis & dashboard.</p>
 
-          <p v-if="errorMessage" class="rounded-2xl bg-red-50 px-4 py-3 font-semibold text-red-600">
-            {{ errorMessage }}
+          <form class="mt-8 space-y-4" @submit.prevent="submit">
+            <input
+              v-model="pin"
+              type="password"
+              inputmode="numeric"
+              class="w-full rounded-2xl border-2 border-slate-200 bg-slate-50 px-5 py-5 text-center text-3xl
+                     font-extrabold tracking-[0.4em] text-slate-800 placeholder:tracking-widest
+                     placeholder:text-slate-300 focus:border-brand-400 focus:bg-white focus:outline-none
+                     focus:ring-4 focus:ring-brand-100"
+              placeholder="••••"
+              aria-label="PIN Guru"
+              autocomplete="off"
+            />
+
+            <p v-if="errorMessage" class="rounded-2xl bg-red-50 px-4 py-3 font-semibold text-red-600">
+              {{ errorMessage }}
+            </p>
+
+            <button type="submit" class="btn-primary w-full py-4 text-xl" :disabled="isSubmitting">
+              {{ isSubmitting ? 'Memeriksa...' : 'Masuk' }}
+            </button>
+          </form>
+
+          <p v-if="isDev" class="mt-6 rounded-2xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-500">
+            Mode pengembangan — PIN bawaan: <span class="font-extrabold text-slate-700">{{ defaultPin }}</span>
           </p>
+        </div>
 
-          <button type="submit" class="btn-primary w-full py-4 text-xl" :disabled="isSubmitting">
-            {{ isSubmitting ? 'Memeriksa...' : 'Masuk' }}
-          </button>
-        </form>
-
-        <p v-if="isDev" class="mt-6 rounded-2xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-500">
-          Mode pengembangan — PIN bawaan: <span class="font-extrabold text-slate-700">{{ defaultPin }}</span>
-        </p>
-
-        <p class="mt-6 text-xs leading-relaxed text-slate-400">
+        <p class="mt-6 text-center text-xs leading-relaxed text-slate-400">
           Halaman ini hanya proteksi sederhana di sisi klien. Untuk aplikasi produksi, gunakan
           autentikasi Supabase Auth.
         </p>
-      </div>
-
-      <div class="mt-6 text-center">
-        <RouterLink to="/" class="btn-ghost">← Kembali ke Kuis</RouterLink>
       </div>
     </div>
   </div>
