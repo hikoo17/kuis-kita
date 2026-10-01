@@ -955,8 +955,10 @@ onMounted(async () => {
       </div>
     </header>
 
+    <div class="mt-5 border-t border-slate-200"></div>
+
     <!-- ============================ TABS (desktop) ============================ -->
-    <nav class="mt-6 hidden flex-wrap gap-2 rounded-2xl bg-white p-2 shadow-card sm:flex">
+    <nav class="mt-5 hidden flex-wrap gap-2 rounded-2xl bg-white p-2 shadow-card sm:flex">
       <button
         v-for="tab in tabs"
         :key="tab.id"
@@ -971,7 +973,7 @@ onMounted(async () => {
     </nav>
 
     <!-- ========================= MENU UTAMA (mobile) ========================= -->
-    <div class="mt-6 sm:hidden">
+    <div class="mt-5 sm:hidden">
       <h2 class="text-xs font-extrabold uppercase tracking-[0.18em] text-slate-400">Menu Utama</h2>
       <div class="mt-3 grid grid-cols-2 gap-3">
         <button
@@ -1005,6 +1007,7 @@ onMounted(async () => {
         </span>
         <span class="text-sm font-extrabold">Pengaturan Kuis</span>
       </button>
+      <div class="mt-5 border-t border-slate-200"></div>
     </div>
 
     <!-- ============================== KELAS ============================== -->
@@ -1247,37 +1250,41 @@ onMounted(async () => {
           </template>
         </div>
 
-        <ul v-else class="mt-4 divide-y divide-slate-100">
-          <li v-for="student in filteredStudents" :key="student.id" class="flex flex-wrap items-center gap-3 py-3 sm:gap-4">
-            <span class="min-w-0 flex-1 basis-40 truncate text-lg font-bold text-slate-800">{{ student.name }}</span>
-            <select
-              :value="student.class_id ?? ''"
-              class="input w-auto py-2 text-base"
-              :aria-label="`Kelas ${student.name}`"
-              @change="handleMoveStudent(student, $event)"
-            >
-              <option value="" disabled>Pilih kelas...</option>
-              <option v-for="item in classList" :key="item.id" :value="item.id">{{ item.name }}</option>
-            </select>
-            <span class="chip bg-accent-100 text-accent-600">{{ student.score }} Poin</span>
-            <button
-              type="button"
-              class="icon-btn-brand"
-              :title="`Reset poin ${student.name}`"
-              :aria-label="`Reset poin ${student.name}`"
-              @click="handleResetStudent(student)"
-            >
-              <RotateCcw :size="18" aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              class="icon-btn-danger"
-              :title="`Hapus ${student.name}`"
-              :aria-label="`Hapus ${student.name}`"
-              @click="handleDeleteStudent(student)"
-            >
-              <Trash2 :size="18" aria-hidden="true" />
-            </button>
+        <ul v-else class="mt-4 space-y-3">
+          <li v-for="student in filteredStudents" :key="student.id" class="rounded-2xl bg-slate-50 p-3.5 ring-1 ring-slate-100">
+            <p class="truncate text-base font-extrabold text-slate-800">{{ student.name }}</p>
+            <div class="mt-2.5 flex flex-wrap items-center gap-2">
+              <select
+                :value="student.class_id ?? ''"
+                class="input w-auto flex-1 py-2 text-base sm:flex-none"
+                :aria-label="`Kelas ${student.name}`"
+                @change="handleMoveStudent(student, $event)"
+              >
+                <option value="" disabled>Pilih kelas...</option>
+                <option v-for="item in classList" :key="item.id" :value="item.id">{{ item.name }}</option>
+              </select>
+              <span class="chip bg-accent-100 text-accent-600">{{ student.score }} Poin</span>
+            </div>
+            <div class="mt-2.5 flex gap-2">
+              <button
+                type="button"
+                class="icon-btn-brand"
+                :title="`Reset poin ${student.name}`"
+                :aria-label="`Reset poin ${student.name}`"
+                @click="handleResetStudent(student)"
+              >
+                <RotateCcw :size="18" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                class="icon-btn-danger"
+                :title="`Hapus ${student.name}`"
+                :aria-label="`Hapus ${student.name}`"
+                @click="handleDeleteStudent(student)"
+              >
+                <Trash2 :size="18" aria-hidden="true" />
+              </button>
+            </div>
           </li>
         </ul>
       </div>
@@ -1500,7 +1507,7 @@ onMounted(async () => {
               <span class="label">Gambar Soal <span class="font-normal text-slate-400">(opsional)</span></span>
 
               <div
-                class="rounded-2xl border-2 border-dashed p-4 transition"
+                class="rounded-2xl border-2 border-dashed p-5 text-center transition sm:p-6"
                 :class="imageColumnAvailable === false
                   ? 'border-slate-200 bg-slate-50 opacity-60'
                   : isImageDragging
@@ -1511,7 +1518,7 @@ onMounted(async () => {
                 @dragleave="onImageDragLeave"
                 @drop.prevent="onImageDrop"
               >
-                <div v-if="imagePreview" class="relative w-fit">
+                <div v-if="imagePreview" class="relative mx-auto w-fit">
                   <img
                     :src="imagePreview"
                     :alt="`Pratinjau gambar soal: ${form.question_text || 'soal'}`"
@@ -1529,10 +1536,18 @@ onMounted(async () => {
                   </button>
                 </div>
 
-                <div class="flex flex-wrap items-center gap-3" :class="imagePreview ? 'mt-3' : ''">
+                <template v-else>
+                  <span class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-50 text-brand-500">
+                    <ImagePlus :size="28" aria-hidden="true" />
+                  </span>
+                  <p class="mt-3 font-extrabold text-slate-700">Tarik & letakkan gambar soal di sini</p>
+                  <p class="mt-1 text-sm text-slate-400">atau pilih dari perangkat</p>
+                </template>
+
+                <div :class="imagePreview ? 'mt-4' : 'mt-3'">
                   <label
                     for="q-image"
-                    class="btn-neutral w-fit !px-4 !py-2 !text-base"
+                    class="btn-primary w-full !px-4 !py-2.5 !text-base sm:w-auto"
                     :class="imageColumnAvailable === false
                       ? 'pointer-events-none cursor-not-allowed opacity-50'
                       : 'cursor-pointer'"
@@ -1549,10 +1564,7 @@ onMounted(async () => {
                       @change="onImageSelect"
                     />
                   </label>
-
-                  <p class="text-sm text-slate-400">
-                    atau tarik &amp; letakkan gambar ke sini · JPG/PNG/WebP, maks 5 MB
-                  </p>
+                  <p class="mt-2.5 text-xs font-semibold text-slate-400">JPG / PNG / WebP · maks 5 MB</p>
                 </div>
               </div>
             </div>
@@ -1602,9 +1614,6 @@ onMounted(async () => {
                 class="input"
                 placeholder="Tulis jawaban yang benar..."
               />
-              <p class="mt-1.5 text-sm text-slate-400">
-                Pemeriksaan jawaban tidak membedakan huruf besar/kecil dan mengabaikan spasi di tepi.
-              </p>
             </div>
 
             <div class="flex flex-col gap-3 sm:flex-row">
@@ -1750,25 +1759,27 @@ onMounted(async () => {
               />
             </div>
 
-            <div role="group" aria-label="Filter tanggal riwayat" class="contents">
+            <div role="group" aria-label="Filter tanggal riwayat" class="grid w-full grid-cols-2 gap-3">
               <div>
                 <label class="label" for="f-from">Dari tanggal</label>
-                <input id="f-from" v-model="historyDateFrom" type="date" class="input w-auto py-2 text-base" />
+                <input id="f-from" v-model="historyDateFrom" type="date" class="input w-full py-2 text-base" />
               </div>
               <div>
                 <label class="label" for="f-to">Sampai tanggal</label>
-                <input id="f-to" v-model="historyDateTo" type="date" class="input w-auto py-2 text-base" />
+                <input id="f-to" v-model="historyDateTo" type="date" class="input w-full py-2 text-base" />
               </div>
               <button
                 v-if="historyDateFrom || historyDateTo"
                 type="button"
-                class="btn-ghost"
+                class="btn-ghost col-span-2 justify-self-start"
                 @click="clearHistoryDate"
               >
                 Bersihkan
               </button>
             </div>
           </div>
+
+          <div class="mt-4 border-t border-slate-200"></div>
 
           <div v-if="filteredSessions.length === 0" class="py-10 text-center">
             <p class="text-4xl" aria-hidden="true">❓</p>

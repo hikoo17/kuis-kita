@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { ArrowLeft } from '@lucide/vue'
 
 import { useQuiz, isAnswering } from '@/composables/useQuiz'
@@ -26,6 +26,7 @@ import ScoreDisplay from '@/components/ScoreDisplay.vue'
 import TurnCountdown from '@/components/TurnCountdown.vue'
 import ConfettiBurst from '@/components/ConfettiBurst.vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
+import InfoModal from '@/components/InfoModal.vue'
 
 const {
   students,
@@ -199,6 +200,14 @@ function onTimeoutChangeStudent() {
 
 function onSelectOption(label) {
   if (answerStatus.value !== 'idle' || isSubmitting.value) return
+  // Belum pilih siswa: beri tahu lewat modal, bukan mengabaikan klik.
+  if (!selectedStudent.value) {
+    showInfo(
+      'Pilih Siswa Dulu',
+      'Silakan pilih siswa yang ingin menjawab terlebih dahulu.',
+    )
+    return
+  }
   pendingAnswer.value = label
   play('click')
 }
@@ -316,6 +325,19 @@ function onBackToSubject() {
 
 // Keluar di tengah kuis membuang game yang belum selesai, jadi minta konfirmasi dulu.
 const { confirmState, askConfirm, runConfirm, cancelConfirm } = useConfirm()
+
+// Modal info ringan (mis. klik jawaban sebelum memilih siswa).
+const infoModal = reactive({ open: false, title: '', message: '' })
+
+function showInfo(title, message) {
+  infoModal.title = title
+  infoModal.message = message
+  infoModal.open = true
+}
+
+function closeInfo() {
+  infoModal.open = false
+}
 
 function requestBackToSubject() {
   askConfirm(
@@ -566,8 +588,8 @@ onBeforeUnmount(() => {
             :total-questions="totalQuestions"
             :time-left="isTimerRunning ? timeLeft : null"
           >
-            <!-- Pilihan ganda selalu terlihat supaya kelas bisa ikut berpikir;
-                 baru bisa diklik setelah siswa dipilih. -->
+            <!-- Pilihan ganda selalu terlihat supaya kelas bisa ikut berpikir.
+                 Klik sebelum memilih siswa menampilkan modal pengingat. -->
             <MultipleChoice
               v-if="isMultipleChoice"
               :key="currentQuestion.id"
@@ -575,7 +597,7 @@ onBeforeUnmount(() => {
               :selected-answer="pendingAnswer"
               :correct-answer="currentQuestion.correct_answer"
               :revealed="isRevealed"
-              :disabled="!selectedStudent || isSubmitting"
+              :disabled="isSubmitting"
               @select="onSelectOption"
             />
 
@@ -721,6 +743,13 @@ onBeforeUnmount(() => {
       :is-loading="confirmState.loading"
       @confirm="runConfirm"
       @cancel="cancelConfirm"
+    />
+
+    <InfoModal
+      :open="infoModal.open"
+      :title="infoModal.title"
+      :message="infoModal.message"
+      @close="closeInfo"
     />
   </div>
 </template>
