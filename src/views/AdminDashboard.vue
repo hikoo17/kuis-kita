@@ -2,18 +2,23 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
+  Archive,
   ArrowLeft,
   ChevronDown,
   ChevronUp,
   Download,
+  FileText,
   ImagePlus,
   LogOut,
   Music,
   Pencil,
   Plus,
   RotateCcw,
+  School,
   Search,
+  Settings,
   Trash2,
+  Users,
   Volume2,
   X,
 } from '@lucide/vue'
@@ -92,11 +97,11 @@ const { fetchSubjectScores } = useSubjectScores()
 
 const activeTab = ref('classes')
 const tabs = [
-  { id: 'classes', label: 'Kelola Kelas' },
-  { id: 'students', label: 'Kelola Siswa' },
-  { id: 'questions', label: 'Kelola Soal' },
-  { id: 'history', label: 'Riwayat' },
-  { id: 'settings', label: 'Pengaturan Kuis' },
+  { id: 'classes', label: 'Kelola Kelas', icon: School },
+  { id: 'students', label: 'Kelola Siswa', icon: Users },
+  { id: 'questions', label: 'Kelola Soal', icon: FileText },
+  { id: 'history', label: 'Riwayat', icon: Archive },
+  { id: 'settings', label: 'Pengaturan Kuis', icon: Settings },
 ]
 
 // ---------------------------------------------------------------- toast ----
@@ -954,6 +959,7 @@ onMounted(async () => {
     <!-- ============================== HEADER ============================== -->
     <header class="flex flex-wrap items-center justify-between gap-4">
       <div>
+        <p class="text-sm font-bold text-slate-400 sm:hidden">Selamat datang,</p>
         <h1 class="text-3xl font-extrabold text-slate-900 sm:text-4xl">Dashboard Guru</h1>
         <p class="mt-1 text-slate-500">Kelola siswa, soal, dan pengaturan kuis kelas.</p>
       </div>
@@ -963,8 +969,8 @@ onMounted(async () => {
       </button>
     </header>
 
-    <!-- =============================== TABS =============================== -->
-    <nav class="mt-6 flex flex-wrap gap-2 rounded-2xl bg-white p-2 shadow-card">
+    <!-- ============================ TABS (desktop) ============================ -->
+    <nav class="mt-6 hidden flex-wrap gap-2 rounded-2xl bg-white p-2 shadow-card sm:flex">
       <button
         v-for="tab in tabs"
         :key="tab.id"
@@ -976,6 +982,43 @@ onMounted(async () => {
         {{ tab.label }}
       </button>
     </nav>
+
+    <!-- ========================= MENU UTAMA (mobile) ========================= -->
+    <div class="mt-6 sm:hidden">
+      <h2 class="text-xs font-extrabold uppercase tracking-[0.18em] text-slate-400">Menu Utama</h2>
+      <div class="mt-3 grid grid-cols-2 gap-3">
+        <button
+          v-for="tab in tabs.slice(0, 4)"
+          :key="tab.id"
+          type="button"
+          class="flex min-h-[6.5rem] flex-col items-start justify-center gap-2 rounded-2xl p-4 text-left shadow-card transition active:scale-95"
+          :class="activeTab === tab.id ? 'bg-brand-600 text-white' : 'bg-white text-slate-800'"
+          @click="activeTab = tab.id"
+        >
+          <span
+            class="flex h-10 w-10 items-center justify-center rounded-xl"
+            :class="activeTab === tab.id ? 'bg-white/20 text-white' : 'bg-brand-50 text-brand-600'"
+          >
+            <component :is="tab.icon" :size="22" aria-hidden="true" />
+          </span>
+          <span class="text-sm font-extrabold">{{ tab.label }}</span>
+        </button>
+      </div>
+      <button
+        type="button"
+        class="mt-3 flex w-full items-center gap-3 rounded-2xl p-4 text-left shadow-card transition active:scale-95"
+        :class="activeTab === 'settings' ? 'bg-brand-600 text-white' : 'bg-white text-slate-800'"
+        @click="activeTab = 'settings'"
+      >
+        <span
+          class="flex h-10 w-10 items-center justify-center rounded-xl"
+          :class="activeTab === 'settings' ? 'bg-white/20 text-white' : 'bg-brand-50 text-brand-600'"
+        >
+          <Settings :size="22" aria-hidden="true" />
+        </span>
+        <span class="text-sm font-extrabold">Pengaturan Kuis</span>
+      </button>
+    </div>
 
     <!-- ============================== KELAS ============================== -->
     <section v-if="activeTab === 'classes'" class="mt-6 space-y-6 animate-fade-in">
@@ -996,15 +1039,19 @@ onMounted(async () => {
           />
         </div>
 
-        <form class="mt-4 flex flex-col gap-3 sm:flex-row" @submit.prevent="handleAddClass">
-          <input
-            v-model="newClassName"
-            type="text"
-            class="input flex-1"
-            placeholder="Nama kelas baru, contoh: X-1"
-            maxlength="60"
-          />
-          <button type="submit" class="btn-primary whitespace-nowrap" :disabled="isAddingClass">
+        <form class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end" @submit.prevent="handleAddClass">
+          <div class="flex-1">
+            <label class="label" for="new-class-name">Nama Kelas</label>
+            <input
+              id="new-class-name"
+              v-model="newClassName"
+              type="text"
+              class="input"
+              placeholder="Masukkan nama kelas, contoh: X-1"
+              maxlength="60"
+            />
+          </div>
+          <button type="submit" class="btn-primary w-full whitespace-nowrap sm:w-auto" :disabled="isAddingClass">
             <Plus :size="20" aria-hidden="true" />
             {{ isAddingClass ? 'Menyimpan...' : 'Tambah Kelas' }}
           </button>
@@ -1046,55 +1093,65 @@ onMounted(async () => {
           <p class="text-slate-500">Coba kata kunci lain.</p>
         </div>
 
-        <ul v-else class="mt-4 divide-y divide-slate-100">
-          <li v-for="item in filteredClasses" :key="item.id" class="flex items-center gap-4 py-3">
+        <ul v-else class="mt-4 space-y-3">
+          <li v-for="item in filteredClasses" :key="item.id" class="rounded-2xl bg-slate-50 p-3.5 ring-1 ring-slate-100">
             <template v-if="editingClassId === item.id">
-              <input
-                v-model="editClassName"
-                type="text"
-                class="input flex-1"
-                maxlength="60"
-                @keydown.enter.prevent="handleRenameClass"
-                @keydown.esc="cancelRenameClass"
-              />
-              <button
-                type="button"
-                class="btn-primary whitespace-nowrap !px-4 !py-2 !text-base"
-                :disabled="isSavingClass"
-                @click="handleRenameClass"
-              >
-                {{ isSavingClass ? 'Menyimpan...' : 'Simpan' }}
-              </button>
-              <button
-                type="button"
-                class="btn-neutral whitespace-nowrap !px-4 !py-2 !text-base"
-                @click="cancelRenameClass"
-              >
-                Batal
-              </button>
+              <div class="flex flex-col gap-2">
+                <input
+                  v-model="editClassName"
+                  type="text"
+                  class="input"
+                  maxlength="60"
+                  @keydown.enter.prevent="handleRenameClass"
+                  @keydown.esc="cancelRenameClass"
+                />
+                <div class="flex gap-2">
+                  <button
+                    type="button"
+                    class="btn-primary flex-1 whitespace-nowrap !px-4 !py-2 !text-base"
+                    :disabled="isSavingClass"
+                    @click="handleRenameClass"
+                  >
+                    {{ isSavingClass ? 'Menyimpan...' : 'Simpan' }}
+                  </button>
+                  <button
+                    type="button"
+                    class="btn-neutral flex-1 whitespace-nowrap !px-4 !py-2 !text-base"
+                    @click="cancelRenameClass"
+                  >
+                    Batal
+                  </button>
+                </div>
+              </div>
             </template>
 
             <template v-else>
-              <span class="min-w-0 flex-1 truncate text-lg font-bold text-slate-800">{{ item.name }}</span>
-              <span class="chip bg-brand-50 text-brand-700">{{ classStudentCount(item.id) }} siswa</span>
-              <button
-                type="button"
-                class="icon-btn-brand"
-                :title="`Ubah nama kelas ${item.name}`"
-                :aria-label="`Ubah nama kelas ${item.name}`"
-                @click="startRenameClass(item, $event)"
-              >
-                <Pencil :size="18" aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                class="icon-btn-danger"
-                :title="`Hapus kelas ${item.name}`"
-                :aria-label="`Hapus kelas ${item.name}`"
-                @click="handleDeleteClass(item, $event)"
-              >
-                <Trash2 :size="18" aria-hidden="true" />
-              </button>
+              <div class="flex items-center gap-3">
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate text-base font-extrabold text-slate-800">{{ item.name }}</span>
+                  <span class="mt-0.5 block text-xs font-bold text-slate-400">
+                    {{ classStudentCount(item.id) }} siswa
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  class="icon-btn-brand"
+                  :title="`Ubah nama kelas ${item.name}`"
+                  :aria-label="`Ubah nama kelas ${item.name}`"
+                  @click="startRenameClass(item, $event)"
+                >
+                  <Pencil :size="18" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  class="icon-btn-danger"
+                  :title="`Hapus kelas ${item.name}`"
+                  :aria-label="`Hapus kelas ${item.name}`"
+                  @click="handleDeleteClass(item, $event)"
+                >
+                  <Trash2 :size="18" aria-hidden="true" />
+                </button>
+              </div>
             </template>
           </li>
         </ul>
@@ -1919,8 +1976,8 @@ onMounted(async () => {
     >
       <div
         v-if="toast.show"
-        class="fixed bottom-6 left-1/2 z-50 w-[min(92vw,28rem)] -translate-x-1/2 rounded-2xl px-5 py-4
-               text-center font-bold shadow-card-hover"
+        class="fixed bottom-24 left-1/2 z-50 w-[min(92vw,28rem)] -translate-x-1/2 rounded-2xl px-5 py-4
+               text-center font-bold shadow-card-hover sm:bottom-6"
         :class="toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-slate-900 text-white'"
         role="status"
       >
