@@ -1,6 +1,5 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
 import {
   Archive,
   ArrowLeft,
@@ -9,7 +8,6 @@ import {
   Download,
   FileText,
   ImagePlus,
-  LogOut,
   Music,
   Pencil,
   Plus,
@@ -27,7 +25,6 @@ import { useStudents } from '@/composables/useStudents'
 import { useQuestions, QUESTION_IMAGE_MAX_BYTES } from '@/composables/useQuestions'
 import { useSubjects } from '@/composables/useSubjects'
 import { useSettings, DEFAULT_SETTINGS } from '@/composables/useSettings'
-import { useAdminAuth } from '@/composables/useAdminAuth'
 import { useSound } from '@/composables/useSound'
 import { useMusic } from '@/composables/useMusic'
 import { useClasses } from '@/composables/useClasses'
@@ -39,8 +36,6 @@ import InfoButton from '@/components/InfoButton.vue'
 import InfoModal from '@/components/InfoModal.vue'
 import { downloadCsv, datedFilename } from '@/lib/exportCsv'
 
-const router = useRouter()
-const { logout } = useAdminAuth()
 const { play } = useSound()
 const { isPlaying: isMusicPlaying, toggle: toggleMusicPreview } = useMusic()
 
@@ -936,11 +931,6 @@ function typeLabel(type) {
   return type === 'multiple_choice' ? 'Pilihan Ganda' : 'Isian Singkat'
 }
 
-function handleLogout() {
-  logout()
-  router.push('/admin')
-}
-
 onMounted(async () => {
   syncSettingsForm()
   await Promise.all([
@@ -957,16 +947,12 @@ onMounted(async () => {
 <template>
   <div class="mx-auto px-4 py-8 sm:px-6 lg:px-8">
     <!-- ============================== HEADER ============================== -->
-    <header class="flex flex-wrap items-center justify-between gap-4">
+    <header>
       <div>
         <p class="text-sm font-bold text-slate-400 sm:hidden">Selamat datang,</p>
         <h1 class="text-3xl font-extrabold text-slate-900 sm:text-4xl">Dashboard Guru</h1>
         <p class="mt-1 text-slate-500">Kelola siswa, soal, dan pengaturan kuis kelas.</p>
       </div>
-      <button type="button" class="btn-danger" @click="handleLogout">
-        <LogOut :size="18" aria-hidden="true" />
-        Logout
-      </button>
     </header>
 
     <!-- ============================ TABS (desktop) ============================ -->
@@ -975,10 +961,11 @@ onMounted(async () => {
         v-for="tab in tabs"
         :key="tab.id"
         type="button"
-        class="flex-1 rounded-xl px-4 py-3 text-base font-extrabold transition"
+        class="flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-base font-extrabold transition"
         :class="activeTab === tab.id ? 'bg-brand-600 text-white' : 'text-slate-600 hover:bg-slate-100'"
         @click="activeTab = tab.id"
       >
+        <component :is="tab.icon" :size="18" aria-hidden="true" />
         {{ tab.label }}
       </button>
     </nav>
@@ -1030,6 +1017,7 @@ onMounted(async () => {
         </p>
       </div>
 
+      <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
       <div v-if="!classesNeedMigration" class="card">
         <div class="flex items-center gap-2">
           <h2 class="text-xl font-extrabold text-slate-900">Tambah Kelas</h2>
@@ -1144,6 +1132,16 @@ onMounted(async () => {
                 </button>
                 <button
                   type="button"
+                  class="btn-neutral whitespace-nowrap !px-3.5 !py-2 !text-sm"
+                  :title="`Ubah nama kelas ${item.name}`"
+                  :aria-label="`Ubah nama kelas ${item.name}`"
+                  @click="startRenameClass(item, $event)"
+                >
+                  <Pencil :size="16" aria-hidden="true" />
+                  Edit
+                </button>
+                <button
+                  type="button"
                   class="icon-btn-danger"
                   :title="`Hapus kelas ${item.name}`"
                   :aria-label="`Hapus kelas ${item.name}`"
@@ -1155,6 +1153,7 @@ onMounted(async () => {
             </template>
           </li>
         </ul>
+      </div>
       </div>
     </section>
 

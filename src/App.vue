@@ -1,7 +1,7 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted } from 'vue'
-import { RouterLink, RouterView, useRoute } from 'vue-router'
-import { Home, LayoutDashboard, LogIn, Maximize, Minimize, Music, Target, Volume2, VolumeX } from '@lucide/vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
+import { ChevronDown, Home, LayoutDashboard, LogIn, LogOut, Maximize, Minimize, Music, Target, User, Volume2, VolumeX } from '@lucide/vue'
 import { useAdminAuth } from '@/composables/useAdminAuth'
 import { isAnswering } from '@/composables/useQuiz'
 import { useSettings } from '@/composables/useSettings'
@@ -11,8 +11,16 @@ import { useFullscreen } from '@/composables/useFullscreen'
 
 const { settings, updateSettings } = useSettings()
 const { play } = useSound()
-const { isAdmin } = useAdminAuth()
+const { isAdmin, logout } = useAdminAuth()
 const { isFullscreen, toggleFullscreen } = useFullscreen()
+const router = useRouter()
+const showAdminMenu = ref(false)
+
+function handleLogout() {
+  showAdminMenu.value = false
+  logout()
+  router.push('/admin')
+}
 
 const route = useRoute()
 
@@ -77,6 +85,53 @@ function toggleMusic() {
           <Target :size="24" aria-hidden="true" class="text-brand-600" />
           <span>KuisKita</span>
         </RouterLink>
+
+        <!-- Kontrol mobile: ikon perbesar & suara di kanan navbar atas. -->
+        <div class="flex items-center gap-1 sm:hidden">
+          <button
+            type="button"
+            class="rounded-xl px-2.5 py-2 text-lg leading-none text-slate-600 transition hover:bg-slate-100
+                   focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-200"
+            :title="fullscreenLabel"
+            :aria-label="fullscreenLabel"
+            :aria-pressed="isFullscreen"
+            @click="toggleFullscreen"
+          >
+            <component :is="isFullscreen ? Minimize : Maximize" :size="20" aria-hidden="true" />
+          </button>
+
+          <button
+            type="button"
+            class="rounded-xl px-2.5 py-2 text-lg leading-none transition hover:bg-slate-100
+                   focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-200"
+            :class="settings.soundEnabled ? 'text-slate-700' : 'text-slate-300'"
+            :title="soundLabel"
+            :aria-label="soundLabel"
+            :aria-pressed="settings.soundEnabled"
+            @click="toggleSound"
+          >
+            <component :is="soundIcon" :size="20" aria-hidden="true" />
+          </button>
+
+          <button
+            v-if="isAnswering"
+            type="button"
+            class="rounded-xl px-2.5 py-2 text-lg leading-none transition hover:bg-slate-100
+                   focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-200"
+            :class="settings.musicEnabled ? 'text-slate-700' : 'text-slate-300'"
+            :title="musicLabel"
+            :aria-label="musicLabel"
+            :aria-pressed="settings.musicEnabled"
+            @click="toggleMusic"
+          >
+            <Music
+              :size="20"
+              aria-hidden="true"
+              :class="settings.musicEnabled ? '' : 'opacity-40'"
+              :stroke-width="settings.musicEnabled ? 2 : 1.5"
+            />
+          </button>
+        </div>
 
         <!-- Menu desktop (di layar kecil diganti bottom bar). -->
         <nav class="hidden items-center gap-1 text-sm font-bold sm:flex">
@@ -143,6 +198,39 @@ function toggleMusic() {
               :stroke-width="settings.musicEnabled ? 2 : 1.5"
             />
           </button>
+
+          <!-- Menu admin: logout pindah ke sini. -->
+          <div v-if="isAdmin" class="relative" @keydown.escape="showAdminMenu = false">
+            <button
+              type="button"
+              class="flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-bold text-slate-600 transition
+                     hover:bg-slate-100 focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-200"
+              :aria-expanded="showAdminMenu"
+              aria-haspopup="menu"
+              @click="showAdminMenu = !showAdminMenu"
+            >
+              <span class="flex h-7 w-7 items-center justify-center rounded-full bg-brand-100 text-brand-700">
+                <User :size="16" aria-hidden="true" />
+              </span>
+              <span>Admin</span>
+              <ChevronDown :size="16" aria-hidden="true" />
+            </button>
+            <div
+              v-if="showAdminMenu"
+              role="menu"
+              class="absolute right-0 mt-2 w-44 overflow-hidden rounded-2xl bg-white py-1.5 shadow-card-hover ring-1 ring-slate-200"
+            >
+              <button
+                type="button"
+                role="menuitem"
+                class="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold text-red-600 transition hover:bg-red-50"
+                @click="handleLogout"
+              >
+                <LogOut :size="16" aria-hidden="true" />
+                Logout
+              </button>
+            </div>
+          </div>
         </nav>
       </div>
     </header>
@@ -178,46 +266,6 @@ function toggleMusic() {
           <component :is="isAdmin ? LayoutDashboard : LogIn" :size="20" aria-hidden="true" />
           <span>{{ isAdmin ? 'Dashboard' : 'Login' }}</span>
         </RouterLink>
-
-        <button
-          type="button"
-          class="flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-bold transition
-                 focus:outline-none focus-visible:bg-slate-100"
-          :class="isFullscreen ? 'text-brand-700' : 'text-slate-600'"
-          :aria-label="fullscreenLabel"
-          :aria-pressed="isFullscreen"
-          @click="toggleFullscreen"
-        >
-          <component :is="isFullscreen ? Minimize : Maximize" :size="20" aria-hidden="true" />
-          <span>Layar</span>
-        </button>
-
-        <button
-          type="button"
-          class="flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-bold transition
-                 focus:outline-none focus-visible:bg-slate-100"
-          :class="settings.soundEnabled ? 'text-slate-600' : 'text-slate-300'"
-          :aria-label="soundLabel"
-          :aria-pressed="settings.soundEnabled"
-          @click="toggleSound"
-        >
-          <component :is="soundIcon" :size="20" aria-hidden="true" />
-          <span>Suara</span>
-        </button>
-
-        <button
-          v-if="isAnswering"
-          type="button"
-          class="flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-bold transition
-                 focus:outline-none focus-visible:bg-slate-100"
-          :class="settings.musicEnabled ? 'text-slate-600' : 'text-slate-300'"
-          :aria-label="musicLabel"
-          :aria-pressed="settings.musicEnabled"
-          @click="toggleMusic"
-        >
-          <Music :size="20" aria-hidden="true" />
-          <span>Musik</span>
-        </button>
       </div>
     </nav>
   </div>
