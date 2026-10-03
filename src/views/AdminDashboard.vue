@@ -1834,6 +1834,15 @@ onMounted(async () => {
                   />
                   <button
                     type="button"
+                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-slate-500 ring-1 ring-slate-200 transition hover:bg-brand-50 hover:text-brand-700"
+                    :title="`Gambar untuk pilihan ${option.label}`"
+                    :aria-label="`Gambar untuk pilihan ${option.label}`"
+                    @click="pickOptionImage(option.label)"
+                  >
+                    <ImagePlus :size="18" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
                     class="icon-btn-danger"
                     :disabled="form.options.length <= 2"
                     :title="`Hapus pilihan ${option.label}`"
@@ -1846,38 +1855,19 @@ onMounted(async () => {
                 <div v-if="hasMath(option.text)" class="mt-2 rounded-xl bg-white px-3 py-2 text-slate-800 ring-1 ring-slate-200">
                   <MathText :text="option.text" />
                 </div>
-                <div class="mt-2 flex items-center gap-2">
+                <div v-if="optionPreview(option)" class="mt-2 flex items-center gap-2">
                   <img
-                    v-if="optionPreview(option)"
                     :src="optionPreview(option)"
                     :alt="`Gambar pilihan ${option.label}`"
                     class="h-14 w-auto rounded-xl object-contain ring-1 ring-slate-200"
                   />
                   <button
-                    v-if="!optionPreview(option)"
                     type="button"
-                    class="btn-ghost !px-2 !py-1 !text-sm !text-brand-600"
-                    @click="pickOptionImage(option.label)"
+                    class="btn-ghost !px-2 !py-1 !text-sm !text-red-600"
+                    @click="removeOptionImage(option)"
                   >
-                    <ImagePlus :size="16" aria-hidden="true" />
-                    Gambar
+                    Hapus
                   </button>
-                  <template v-else>
-                    <button
-                      type="button"
-                      class="btn-ghost !px-2 !py-1 !text-sm"
-                      @click="pickOptionImage(option.label)"
-                    >
-                      Ganti
-                    </button>
-                    <button
-                      type="button"
-                      class="btn-ghost !px-2 !py-1 !text-sm !text-red-600"
-                      @click="removeOptionImage(option)"
-                    >
-                      Hapus
-                    </button>
-                  </template>
                 </div>
               </div>
             </div>

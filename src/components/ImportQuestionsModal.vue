@@ -81,7 +81,20 @@ async function onFileChange(event) {
 }
 
 function removeItem(index) {
-  items.value.splice(index, 1)
+  const [removed] = items.value.splice(index, 1)
+  removed?.options.forEach((option) => {
+    if (option.previewUrl) URL.revokeObjectURL(option.previewUrl)
+  })
+}
+
+/** Hapus satu pilihan di pratinjau (sisakan minimal 2, seperti form soal). */
+function removePreviewOption(index, label) {
+  const item = items.value[index]
+  if (!item || item.options.length <= 2) return
+  const removed = item.options.find((option) => option.label === label)
+  if (removed?.previewUrl) URL.revokeObjectURL(removed.previewUrl)
+  item.options = item.options.filter((option) => option.label !== label)
+  if (item.correctAnswer === label) item.correctAnswer = ''
 }
 
 function isImportable(item) {
@@ -335,6 +348,16 @@ async function runImport() {
                               @click="pickOptionImage(index, option.label)"
                             >
                               <ImagePlus :size="16" aria-hidden="true" />
+                            </button>
+                            <button
+                              type="button"
+                              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-500 transition hover:bg-red-100 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+                              :disabled="item.options.length <= 2"
+                              :title="`Hapus pilihan ${option.label}`"
+                              :aria-label="`Hapus pilihan ${option.label}`"
+                              @click="removePreviewOption(index, option.label)"
+                            >
+                              <X :size="16" aria-hidden="true" />
                             </button>
                           </div>
                           <div v-if="optionPreview(option)" class="mt-2 flex items-center gap-2">
