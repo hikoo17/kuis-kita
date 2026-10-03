@@ -1638,15 +1638,6 @@ onMounted(async () => {
                 <Plus :size="20" aria-hidden="true" />
                 Tambah Soal
               </button>
-              <button
-                v-if="activeSubjectTotal > 0"
-                type="button"
-                class="btn-danger col-span-2 !px-3 !py-2.5 !text-base sm:col-span-1"
-                @click="handleDeleteAllQuestions"
-              >
-                <Trash2 :size="18" aria-hidden="true" />
-                Hapus Semua Soal
-              </button>
             </div>
           </div>
         </div>
@@ -1868,16 +1859,28 @@ onMounted(async () => {
 
         <!-- Daftar soal materi ini -->
         <div class="card">
-          <div class="flex flex-wrap items-center justify-between gap-4">
+          <div class="flex flex-wrap items-center justify-between gap-3">
             <h3 class="text-lg font-extrabold text-slate-900">
               Daftar Soal <span class="ml-1 text-slate-400">({{ subjectQuestions.length }})</span>
             </h3>
 
-            <select v-model="filterType" class="input w-auto py-2 text-base">
-              <option value="all">Semua Tipe</option>
-              <option value="multiple_choice">Pilihan Ganda</option>
-              <option value="short_answer">Isian Singkat</option>
-            </select>
+            <div class="flex flex-wrap items-center gap-2">
+              <select v-model="filterType" class="input w-auto py-2 text-base">
+                <option value="all">Semua Tipe</option>
+                <option value="multiple_choice">Pilihan Ganda</option>
+                <option value="short_answer">Isian Singkat</option>
+              </select>
+
+              <button
+                v-if="activeSubjectTotal > 0"
+                type="button"
+                class="btn-danger !px-3.5 !py-2 !text-sm"
+                @click="handleDeleteAllQuestions"
+              >
+                <Trash2 :size="16" aria-hidden="true" />
+                Hapus Semua Soal
+              </button>
+            </div>
           </div>
 
           <p v-if="questionsError" class="mt-4 rounded-2xl bg-red-50 px-4 py-3 font-semibold text-red-600">
