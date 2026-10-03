@@ -31,14 +31,18 @@ defineProps({
       <MathText :text="question.question_text" />
     </h2>
 
-    <img
+    <div
       v-if="question.image_url"
-      :src="question.image_url"
-      :alt="question.question_text ? `Gambar untuk soal: ${question.question_text}` : 'Gambar soal'"
-      class="mx-auto mt-4 max-h-48 w-auto rounded-2xl object-contain ring-1 ring-slate-200"
-    />
+      class="mx-auto mt-5 w-fit max-w-full rounded-2xl bg-slate-50/60 p-4 ring-1 ring-slate-200"
+    >
+      <img
+        :src="question.image_url"
+        :alt="question.question_text ? `Gambar untuk soal: ${question.question_text}` : 'Gambar soal'"
+        class="mx-auto max-h-48 w-auto rounded-xl object-contain"
+      />
+    </div>
 
-    <div class="mt-5">
+    <div class="mt-7">
       <slot />
     </div>
   </article>

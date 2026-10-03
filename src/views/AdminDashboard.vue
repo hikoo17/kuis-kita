@@ -1657,7 +1657,7 @@ onMounted(async () => {
             <div class="grid w-full grid-cols-2 gap-2 sm:w-auto sm:flex sm:flex-wrap">
               <button
                 type="button"
-                class="btn-word !px-3 !py-2.5 !text-base"
+                class="btn-word !px-3 !py-2 !text-sm"
                 @click="showImport = true"
               >
                 <FileUp :size="18" aria-hidden="true" />
@@ -1666,7 +1666,7 @@ onMounted(async () => {
               <button
                 v-if="!showQuestionForm"
                 type="button"
-                class="btn-primary !px-3"
+                class="btn-primary !px-3 !py-2 !text-sm"
                 @click="startAddQuestion"
               >
                 <Plus :size="20" aria-hidden="true" />
@@ -1926,7 +1926,7 @@ onMounted(async () => {
               <button
                 v-if="activeSubjectTotal > 0"
                 type="button"
-                class="btn-danger !px-3.5 !py-2 !text-sm"
+                class="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-white px-3 py-2 text-sm font-bold text-red-600 transition hover:bg-red-50 active:scale-[0.98]"
                 @click="handleDeleteAllQuestions"
               >
                 <Trash2 :size="16" aria-hidden="true" />
@@ -1985,7 +1985,7 @@ onMounted(async () => {
               <div class="mt-3 flex gap-2">
                 <button
                   type="button"
-                  class="icon-btn-brand"
+                  class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-brand-100 text-brand-700 transition hover:bg-brand-200 active:scale-95"
                   title="Edit soal ini"
                   aria-label="Edit soal ini"
                   @click="startEdit(question)"
@@ -1994,7 +1994,7 @@ onMounted(async () => {
                 </button>
                 <button
                   type="button"
-                  class="icon-btn-danger"
+                  class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-red-100 text-red-600 transition hover:bg-red-200 active:scale-95"
                   title="Hapus soal ini"
                   aria-label="Hapus soal ini"
                   @click="handleDeleteQuestion(question)"
