@@ -5,6 +5,7 @@ import MathText from '@/components/MathText.vue'
 import { extractDocxBlocks } from '@/lib/docxImport'
 import { parseQuestions } from '@/lib/parseQuestions'
 import { useQuestions, QUESTION_IMAGE_MAX_BYTES } from '@/composables/useQuestions'
+import { useSettings } from '@/composables/useSettings'
 import { useModalFocus } from '@/composables/useModalFocus'
 
 const props = defineProps({
@@ -15,6 +16,7 @@ const props = defineProps({
 const emit = defineEmits(['close', 'imported'])
 
 const { addQuestion, uploadQuestionImage, deleteQuestionImage } = useQuestions()
+const { settings } = useSettings()
 
 const dialogRef = ref(null)
 const fileInput = ref(null)
@@ -68,10 +70,11 @@ async function onFileChange(event) {
       parseError.value = 'Tidak ada soal yang terbaca. Pastikan tiap soal bernomor dan pilihannya A, B, C, ...'
       return
     }
+    const globalTime = Math.floor(Number(settings.value.answerTimeLimit))
     items.value = parsed.map((item) => ({
       ...item,
       selected: true,
-      timeLimit: null,
+      timeLimit: Number.isFinite(globalTime) ? Math.max(0, globalTime) : null,
       options: item.options.map((option) => ({ ...option, image: null, imageFile: null, previewUrl: '' })),
     }))
   } catch (err) {

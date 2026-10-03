@@ -73,6 +73,7 @@ const {
   deleteQuestionImage,
   imageColumnAvailable,
   checkImageSupport,
+  timeColumnAvailable,
   checkTimeSupport,
 } = useQuestions()
 
@@ -538,6 +539,11 @@ const isSavingQuestion = ref(false)
 // Tiap kartu punya state sendiri supaya bisa tambah banyak soal sekaligus.
 let questionKey = 0
 
+function globalDefaultTimeLimit() {
+  const value = Math.floor(Number(settings.value.answerTimeLimit))
+  return Number.isFinite(value) ? Math.max(0, value) : null
+}
+
 function newQuestionState(subject) {
   return {
     key: ++questionKey,
@@ -549,7 +555,7 @@ function newQuestionState(subject) {
       options: [emptyOption('A'), emptyOption('B'), emptyOption('C'), emptyOption('D')],
       correct_answer: '',
       image_url: '',
-      time_limit: null,
+      time_limit: globalDefaultTimeLimit(),
     },
     imageFile: null,
     previewUrl: '',
@@ -1585,6 +1591,16 @@ onMounted(async () => {
         </p>
       </div>
 
+      <!-- Peringatan bila batas waktu per soal belum dimigrasi -->
+      <div v-if="timeColumnAvailable === false" class="rounded-3xl bg-amber-50 p-5 ring-1 ring-amber-200">
+        <p class="font-extrabold text-amber-700">⚠️ Batas waktu per soal belum aktif</p>
+        <p class="mt-1 text-amber-700">
+          Jalankan file <span class="font-bold">supabase/migration_question_time_limit.sql</span> di
+          SQL Editor Supabase. Sementara ini semua soal memakai waktu global dan kolom Waktu
+          diabaikan saat menyimpan.
+        </p>
+      </div>
+
       <p v-if="subjectsError" class="rounded-3xl bg-red-50 px-5 py-4 font-semibold text-red-600 ring-1 ring-red-200">
         {{ subjectsError }}
       </p>
@@ -1809,7 +1825,7 @@ onMounted(async () => {
                         </button>
                       </div>
 
-                      <div class="grid grid-cols-2 gap-4">
+                      <div class="grid grid-cols-2 gap-4 mt-4">
                         <div>
                           <label class="label" :for="`q-type-${state.key}`">Tipe Soal</label>
                           <select :id="`q-type-${state.key}`" v-model="state.form.type" class="input">
@@ -1830,9 +1846,6 @@ onMounted(async () => {
                           />
                         </div>
                       </div>
-                      <p class="mt-1.5 text-xs text-slate-400">
-                        Kosongkan untuk ikut pengaturan global · isi 0 untuk tanpa batas waktu.
-                      </p>
 
             <div class="mt-4">
               <label class="label" :for="`q-text-${state.key}`">Pertanyaan</label>
