@@ -29,6 +29,7 @@ import { useSettings, DEFAULT_SETTINGS } from '@/composables/useSettings'
 import { useSound } from '@/composables/useSound'
 import { useMusic } from '@/composables/useMusic'
 import { useClasses } from '@/composables/useClasses'
+import { useModalFocus } from '@/composables/useModalFocus'
 import { useSubjectScores } from '@/composables/useSubjectScores'
 import { useQuizSessions } from '@/composables/useQuizSessions'
 import ConfirmModal from '@/components/ConfirmModal.vue'
@@ -406,7 +407,14 @@ function handleResetAllScores() {
 // questions inside the opened subject.
 const activeSubject = ref('') // '' = show the subject cards
 const showQuestionForm = ref(false) // form is collapsed until "Tambah Soal"
+const questionDialogRef = ref(null)
 const filterType = ref('all')
+
+useModalFocus(
+  () => showQuestionForm.value,
+  questionDialogRef,
+  () => resetForm(),
+)
 
 /** One card per subject, with a small summary of its questions. */
 const subjectCards = computed(() =>
@@ -691,7 +699,6 @@ function startAddQuestion() {
   resetForm()
   form.subject = activeSubject.value
   showQuestionForm.value = true
-  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 function startEdit(question) {
@@ -715,8 +722,6 @@ function startEdit(question) {
   if (question.type === 'multiple_choice' && form.correct_answer && !form.options.some((o) => o.label === form.correct_answer)) {
     form.options.push({ label: form.correct_answer, text: '' })
   }
-
-  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 function validateForm() {
@@ -1586,33 +1591,53 @@ onMounted(async () => {
           </div>
         </div>
 
-        <!-- Form soal (materinya sudah terkunci) -->
-        <div v-if="showQuestionForm" class="card">
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <h3 class="text-xl font-extrabold text-slate-900">
-              {{ editingId ? 'Edit Soal' : 'Tambah Soal' }}
-            </h3>
-            <button type="button" class="btn-ghost" @click="resetForm">
-              {{ editingId ? 'Batal Edit' : 'Tutup' }}
-            </button>
-          </div>
-
-          <form class="mt-5 space-y-5" @submit.prevent="handleSaveQuestion">
-            <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
-              <div>
-                <span class="label">Materi</span>
-                <div class="flex min-h-[3.25rem] items-center rounded-2xl bg-brand-50 px-4">
-                  <span class="font-extrabold text-brand-700">{{ activeSubject }}</span>
+        <!-- Form soal sebagai modal (materinya sudah terkunci) -->
+        <Teleport to="body">
+          <Transition
+            enter-active-class="transition duration-200 ease-out"
+            enter-from-class="opacity-0"
+            leave-active-class="transition duration-150 ease-in"
+            leave-to-class="opacity-0"
+          >
+            <div
+              v-if="showQuestionForm"
+              class="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+            >
+              <div
+                ref="questionDialogRef"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="q-form-title"
+                tabindex="-1"
+                class="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-card-hover focus:outline-none sm:rounded-3xl"
+              >
+                <div class="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4 sm:px-6">
+                  <div class="min-w-0">
+                    <h3 id="q-form-title" class="truncate text-lg font-extrabold text-slate-900 sm:text-xl">
+                      {{ editingId ? 'Edit Soal' : 'Tambah Soal' }}
+                    </h3>
+                    <p class="mt-0.5 truncate text-sm text-slate-500">
+                      Materi: <span class="font-bold text-brand-700">{{ activeSubject }}</span>
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    class="icon-btn-neutral shrink-0"
+                    aria-label="Tutup"
+                    @click="resetForm"
+                  >
+                    <X :size="18" aria-hidden="true" />
+                  </button>
                 </div>
-              </div>
 
-              <div>
-                <label class="label" for="q-type">Tipe Soal</label>
-                <select id="q-type" v-model="form.type" class="input">
-                  <option value="multiple_choice">Pilihan Ganda</option>
-                  <option value="short_answer">Isian Singkat</option>
-                </select>
-              </div>
+                <div class="flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+                  <form class="space-y-5" @submit.prevent="handleSaveQuestion">
+            <div>
+              <label class="label" for="q-type">Tipe Soal</label>
+              <select id="q-type" v-model="form.type" class="input">
+                <option value="multiple_choice">Pilihan Ganda</option>
+                <option value="short_answer">Isian Singkat</option>
+              </select>
             </div>
 
             <div>
@@ -1757,13 +1782,17 @@ onMounted(async () => {
             </div>
 
             <div class="flex flex-col gap-3 sm:flex-row">
-              <button type="submit" class="btn-primary" :disabled="isSavingQuestion">
+              <button type="submit" class="btn-primary flex-1" :disabled="isSavingQuestion">
                 {{ isSavingQuestion ? 'Menyimpan...' : editingId ? 'Simpan Perubahan' : 'Simpan Soal' }}
               </button>
               <button type="button" class="btn-neutral" @click="resetForm">Batal</button>
             </div>
-          </form>
-        </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </Transition>
+        </Teleport>
 
         <!-- Daftar soal materi ini -->
         <div class="card">
