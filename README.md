@@ -399,6 +399,8 @@ Untuk aplikasi **produksi**:
 
 Halaman `/admin` memakai PIN sederhana di sisi klien (`VITE_ADMIN_PIN`).
 Ini **bukan** proteksi yang aman — nilainya ikut ter-bundle ke browser.
+Status login disimpan di `localStorage`, jadi guru tidak perlu memasukkan PIN lagi
+setelah me-refresh atau membuka ulang halaman; login berakhir hanya saat menekan **Logout**.
 
 ---
 
