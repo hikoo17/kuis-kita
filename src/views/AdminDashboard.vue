@@ -6,6 +6,7 @@ import {
   ChevronDown,
   ChevronUp,
   Download,
+  FileSpreadsheet,
   FileText,
   FileUp,
   ImagePlus,
@@ -20,6 +21,7 @@ import {
   Users,
   Volume2,
   X,
+  BookOpen, HelpCircle
 } from '@lucide/vue'
 
 import { useStudents } from '@/composables/useStudents'
@@ -40,6 +42,10 @@ import InfoModal from '@/components/InfoModal.vue'
 // Wizard impor berat (JSZip + pembaca docx) dimuat hanya saat dipakai.
 const ImportQuestionsModal = defineAsyncComponent(
   () => import('@/components/ImportQuestionsModal.vue'),
+)
+// Impor siswa juga memakai JSZip (pembaca .xlsx) — muat saat dibuka saja.
+const ImportStudentsModal = defineAsyncComponent(
+  () => import('@/components/ImportStudentsModal.vue'),
 )
 import { downloadCsv, datedFilename } from '@/lib/exportCsv'
 
@@ -271,6 +277,7 @@ const isSavingStudent = ref(false)
 // 'all' = every class, otherwise filter the list by class.
 const studentClassFilter = ref('all')
 const studentSearch = ref('')
+const showImportStudents = ref(false)
 
 const filteredStudents = computed(() => {
   const keyword = studentSearch.value.trim().toLowerCase()
@@ -309,6 +316,24 @@ async function handleAddStudent() {
   } finally {
     isAddingStudent.value = false
   }
+}
+
+function onStudentsImported({ count, failures }) {
+  if (failures.length === 0) {
+    showToast(`${count} siswa berhasil diimport.`)
+    return
+  }
+
+  const lines = failures.slice(0, 8).map((item) => `• ${item.name}: ${item.reason}`)
+  if (failures.length > 8) lines.push(`… dan ${failures.length - 8} lainnya.`)
+  const header =
+    count > 0
+      ? `${count} siswa berhasil diimport.`
+      : 'Tidak ada siswa yang berhasil diimport.'
+  showInfo(
+    'Hasil Import Siswa',
+    `${header}\n\n${failures.length} siswa gagal dimasukkan:\n${lines.join('\n')}`,
+  )
 }
 
 async function handleMoveStudent(student, event) {
@@ -1204,19 +1229,38 @@ onMounted(async () => {
     <div class="mt-5 border-t border-slate-200"></div>
 
     <!-- ============================ TABS (desktop) ============================ -->
-    <nav class="mt-5 hidden flex-wrap gap-2 rounded-2xl bg-white p-2 shadow-card sm:flex">
+<!-- Navigation Tabs (Desktop) -->
+    <nav class="mt-5 hidden flex-wrap gap-2 rounded-2xl bg-white p-2 shadow-lg shadow-slate-200/50 ring-1 ring-slate-200/80 sm:flex">
       <button
         v-for="tab in tabs"
         :key="tab.id"
         type="button"
-        class="flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-base font-extrabold transition"
-        :class="activeTab === tab.id ? 'bg-brand-600 text-white' : 'text-slate-600 hover:bg-slate-100'"
+        class="flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-base font-extrabold transition active:scale-95"
+        :class="
+          activeTab === tab.id
+            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+        "
         @click="activeTab = tab.id"
       >
-        <component :is="tab.icon" :size="18" aria-hidden="true" />
-        {{ tab.label }}
+        <component :is="tab.icon" :size="20" aria-hidden="true" />
+        <span>{{ tab.label }}</span>
       </button>
     </nav>
+
+    <!-- Navigation Dropdown / Select (Mobile View Option) -->
+    <div class="mt-4 sm:hidden">
+      <label for="active-tab-select" class="sr-only">Pilih Tab Navigation</label>
+      <select
+        id="active-tab-select"
+        v-model="activeTab"
+        class="w-full rounded-2xl border-slate-200 bg-white p-3.5 text-base font-extrabold text-slate-800 shadow-sm ring-1 ring-slate-200/80 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+      >
+        <option v-for="tab in tabs" :key="tab.id" :value="tab.id">
+          {{ tab.label }}
+        </option>
+      </select>
+    </div>
 
     <div class="mt-5 hidden border-t border-slate-200 sm:block"></div>
 
@@ -1259,315 +1303,407 @@ onMounted(async () => {
     </div>
 
     <!-- ============================== KELAS ============================== -->
-    <section v-if="activeTab === 'classes'" class="mt-6 space-y-6 animate-fade-in">
-      <div v-if="classesNeedMigration" class="rounded-3xl bg-amber-50 p-5 ring-1 ring-amber-200">
-        <p class="font-extrabold text-amber-700">⚠️ Tabel kelas belum tersedia</p>
-        <p class="mt-1 text-amber-700">
-          Jalankan file <span class="font-bold">supabase/migration_classes.sql</span> di SQL Editor
-          Supabase untuk mengaktifkan kuis per kelas.
-        </p>
+<section v-if="activeTab === 'classes'" class="mt-6 space-y-6 animate-fade-in">
+  <!-- Alert Migration -->
+  <div v-if="classesNeedMigration" class="rounded-3xl bg-amber-50 p-6 ring-1 ring-amber-300/70 shadow-sm">
+    <p class="text-base font-extrabold text-amber-900 sm:text-lg">⚠️ Tabel kelas belum tersedia</p>
+    <p class="mt-1 text-sm font-medium text-amber-800">
+      Jalankan file <span class="rounded bg-amber-100/80 px-1.5 py-0.5 font-mono font-bold text-amber-950">supabase/migration_classes.sql</span> di SQL Editor Supabase untuk mengaktifkan fitur kelas.
+    </p>
+  </div>
+
+  <!-- Card 1: Form Tambah Kelas -->
+  <div v-if="!classesNeedMigration" class="rounded-3xl bg-white p-6 shadow-lg shadow-slate-200/50 ring-1 ring-slate-200/80 sm:p-7">
+    <div class="flex items-center gap-3 border-b border-slate-100 pb-4">
+      <h2 class="text-xl font-extrabold tracking-tight text-slate-900 sm:text-2xl">Tambah Kelas</h2>
+      <InfoButton
+        label="Info Tambah Kelas"
+        @open="showInfo('Tambah Kelas', 'Buat, ubah nama, dan hapus kelas. Menghapus kelas ikut menghapus seluruh siswa beserta poinnya. Nama kelas tidak boleh sama.')"
+      />
+    </div>
+
+    <form class="mt-5 flex flex-col gap-3.5 sm:flex-row sm:items-center" @submit.prevent="handleAddClass">
+      <div class="flex-1">
+        <input
+          id="new-class-name"
+          v-model="newClassName"
+          type="text"
+          class="w-full rounded-xl border-slate-300 bg-slate-50/80 px-4 py-3 text-base font-semibold text-slate-800 placeholder-slate-400 outline-none ring-1 ring-slate-300 transition focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/20"
+          placeholder="Masukkan nama kelas, contoh: X-1"
+          maxlength="60"
+          aria-label="Nama kelas baru"
+        />
       </div>
+      <button
+        type="submit"
+        class="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-base font-bold text-white shadow-md shadow-indigo-500/20 transition hover:bg-indigo-700 active:scale-95 disabled:opacity-50 whitespace-nowrap sm:w-auto"
+        :disabled="isAddingClass"
+      >
+        <Plus :size="20" aria-hidden="true" />
+        {{ isAddingClass ? 'Menyimpan...' : 'Tambah Kelas' }}
+      </button>
+    </form>
 
-      <div v-if="!classesNeedMigration" class="card">
-        <div class="flex items-center gap-2">
-          <h2 class="text-xl font-extrabold text-slate-900">Tambah Kelas</h2>
-          <InfoButton
-            label="Info Tambah Kelas"
-            @open="showInfo('Tambah Kelas', 'Buat, ubah nama, dan hapus kelas. Menghapus kelas ikut menghapus seluruh siswa beserta poinnya. Nama kelas tidak boleh sama.')"
-          />
-        </div>
+    <p v-if="classesError" class="mt-4 flex items-center gap-2 rounded-2xl bg-red-50 p-4 text-sm font-bold text-red-600 ring-1 ring-inset ring-red-500/10">
+      {{ classesError }}
+    </p>
+  </div>
 
-        <form class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end" @submit.prevent="handleAddClass">
-          <div class="flex-1">
-            <input
-              id="new-class-name"
-              v-model="newClassName"
-              type="text"
-              class="input"
-              placeholder="Masukkan nama kelas, contoh: X-1"
-              maxlength="60"
-              aria-label="Nama kelas baru"
-            />
-          </div>
-          <button type="submit" class="btn-primary w-full whitespace-nowrap sm:w-auto" :disabled="isAddingClass">
-            <Plus :size="20" aria-hidden="true" />
-            {{ isAddingClass ? 'Menyimpan...' : 'Tambah Kelas' }}
-          </button>
-        </form>
-
-        <p v-if="classesError" class="mt-4 rounded-2xl bg-red-50 px-4 py-3 font-semibold text-red-600">
-          {{ classesError }}
-        </p>
-      </div>
-
-      <div class="card">
-        <h3 class="text-lg font-extrabold text-slate-900">
+  <!-- Card 2: Daftar Kelas -->
+  <div class="rounded-3xl bg-white p-6 shadow-lg shadow-slate-200/50 ring-1 ring-slate-200/80 sm:p-7">
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+      <div class="flex items-center gap-3">
+        <h3 class="text-xl font-extrabold tracking-tight text-slate-900 sm:text-2xl">
           Daftar Kelas
-          <span class="ml-1 text-slate-400">({{ filteredClasses.length }})</span>
         </h3>
-
-        <div v-if="!isLoadingClasses && classList.length > 0" class="relative mt-4 w-full sm:max-w-sm">
-          <Search :size="18" aria-hidden="true" class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            v-model="classSearch"
-            type="search"
-            class="input !pl-11"
-            placeholder="Cari kelas..."
-            aria-label="Cari kelas"
-          />
-        </div>
-
-        <div v-if="isLoadingClasses" class="py-10 text-center text-slate-500">Memuat...</div>
-
-        <div v-else-if="classList.length === 0" class="py-10 text-center">
-          <p class="text-4xl" aria-hidden="true">❓</p>
-          <p class="mt-2 font-bold text-slate-700">Belum Ada Kelas</p>
-          <p class="text-slate-500">Tambahkan kelas dengan form di atas.</p>
-        </div>
-
-        <div v-else-if="filteredClasses.length === 0" class="py-10 text-center">
-          <p class="text-4xl" aria-hidden="true">❓</p>
-          <p class="mt-2 font-bold text-slate-700">Kelas tidak ditemukan.</p>
-          <p class="text-slate-500">Coba kata kunci lain.</p>
-        </div>
-
-        <ul v-else class="mt-4 space-y-3">
-          <li v-for="item in filteredClasses" :key="item.id" class="rounded-2xl bg-slate-50 p-3.5 ring-1 ring-slate-100">
-            <template v-if="editingClassId === item.id">
-              <div class="flex flex-col gap-2">
-                <input
-                  v-model="editClassName"
-                  type="text"
-                  class="input"
-                  maxlength="60"
-                  @keydown.enter.prevent="handleRenameClass"
-                  @keydown.esc="cancelRenameClass"
-                />
-                <div class="flex gap-2">
-                  <button
-                    type="button"
-                    class="btn-primary flex-1 whitespace-nowrap !px-4 !py-2 !text-base"
-                    :disabled="isSavingClass"
-                    @click="handleRenameClass"
-                  >
-                    {{ isSavingClass ? 'Menyimpan...' : 'Simpan' }}
-                  </button>
-                  <button
-                    type="button"
-                    class="btn-neutral flex-1 whitespace-nowrap !px-4 !py-2 !text-base"
-                    @click="cancelRenameClass"
-                  >
-                    Batal
-                  </button>
-                </div>
-              </div>
-            </template>
-
-            <template v-else>
-              <div class="flex items-center gap-3">
-                <span class="min-w-0 flex-1">
-                  <span class="block truncate text-base font-extrabold text-slate-800">{{ item.name }}</span>
-                  <span class="mt-0.5 block text-xs font-bold text-slate-400">
-                    {{ classStudentCount(item.id) }} siswa
-                  </span>
-                </span>
-                <button
-                  type="button"
-                  class="icon-btn-brand"
-                  :title="`Ubah nama kelas ${item.name}`"
-                  :aria-label="`Ubah nama kelas ${item.name}`"
-                  @click="startRenameClass(item, $event)"
-                >
-                  <Pencil :size="18" aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  class="icon-btn-danger"
-                  :title="`Hapus kelas ${item.name}`"
-                  :aria-label="`Hapus kelas ${item.name}`"
-                  @click="handleDeleteClass(item, $event)"
-                >
-                  <Trash2 :size="18" aria-hidden="true" />
-                </button>
-              </div>
-            </template>
-          </li>
-        </ul>
+        <span class="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-sm font-bold text-slate-700 ring-1 ring-inset ring-slate-500/10">
+          {{ filteredClasses.length }} Kelas
+        </span>
       </div>
-    </section>
+    </div>
+
+    <!-- Search input -->
+    <div v-if="!isLoadingClasses && classList.length > 0" class="relative mt-5 w-full sm:max-w-md">
+      <Search :size="18" aria-hidden="true" class="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+      <input
+        v-model="classSearch"
+        type="search"
+        class="w-full rounded-xl border-slate-300 bg-slate-50/80 pl-10 pr-4 py-2.5 text-sm font-medium text-slate-800 placeholder-slate-400 outline-none ring-1 ring-slate-300 transition focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/20"
+        placeholder="Cari nama kelas..."
+        aria-label="Cari kelas"
+      />
+    </div>
+
+    <!-- Loading state -->
+    <div v-if="isLoadingClasses" class="py-12 text-center text-slate-500">
+      <div class="mx-auto h-8 w-8 animate-spin rounded-full border-3 border-indigo-600 border-t-transparent"></div>
+      <p class="mt-3 text-sm font-semibold text-slate-600">Memuat data kelas...</p>
+    </div>
+
+    <!-- Empty state -->
+    <div v-else-if="classList.length === 0" class="py-12 text-center">
+      <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-2xl">
+        ❓
+      </div>
+      <p class="mt-3 text-lg font-bold text-slate-800">Belum Ada Kelas</p>
+      <p class="mt-1 text-sm font-medium text-slate-500">Tambahkan kelas baru dengan form di atas.</p>
+    </div>
+
+    <div v-else-if="filteredClasses.length === 0" class="py-12 text-center">
+      <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-2xl">
+        ❓
+      </div>
+      <p class="mt-3 text-lg font-bold text-slate-800">Kelas Tidak Ditemukan</p>
+      <p class="mt-1 text-sm font-medium text-slate-500">Coba ubah kata kunci pencarian kelas.</p>
+    </div>
+
+    <!-- List kelas -->
+    <ul v-else class="mt-5 space-y-3">
+      <li
+        v-for="item in filteredClasses"
+        :key="item.id"
+        class="rounded-2xl bg-slate-50/90 p-4 ring-1 ring-slate-200/80 shadow-xs transition hover:bg-white hover:shadow-md hover:ring-indigo-300"
+      >
+        <!-- Mode Edit Nama Kelas -->
+        <template v-if="editingClassId === item.id">
+          <div class="flex flex-col gap-2.5 sm:flex-row sm:items-center">
+            <input
+              v-model="editClassName"
+              type="text"
+              class="flex-1 rounded-xl border-slate-300 bg-white px-3.5 py-2 text-base font-bold text-slate-800 outline-none ring-2 ring-indigo-500"
+              maxlength="60"
+              @keydown.enter.prevent="handleRenameClass"
+              @keydown.esc="cancelRenameClass"
+            />
+            <div class="flex gap-2">
+              <button
+                type="button"
+                class="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-indigo-700 active:scale-95"
+                :disabled="isSavingClass"
+                @click="handleRenameClass"
+              >
+                {{ isSavingClass ? 'Simpan...' : 'Simpan' }}
+              </button>
+              <button
+                type="button"
+                class="inline-flex items-center justify-center rounded-xl bg-slate-200 px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-300 active:scale-95"
+                @click="cancelRenameClass"
+              >
+                Batal
+              </button>
+            </div>
+          </div>
+        </template>
+
+        <!-- Mode Tampilan Normal -->
+        <template v-else>
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-3">
+                <span class="truncate text-base font-black text-slate-900 sm:text-lg">{{ item.name }}</span>
+                <span class="inline-flex items-center rounded-lg bg-indigo-50/80 px-2.5 py-1 text-xs font-bold text-indigo-700 ring-1 ring-inset ring-indigo-600/20">
+                  👥 {{ classStudentCount(item.id) }} Siswa
+                </span>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button
+                type="button"
+                class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700 transition hover:bg-indigo-600 hover:text-white active:scale-95 sm:text-sm"
+                :title="`Ubah nama kelas ${item.name}`"
+                :aria-label="`Ubah nama kelas ${item.name}`"
+                @click="startRenameClass(item, $event)"
+              >
+                <Pencil :size="15" aria-hidden="true" />
+                Edit
+              </button>
+              <button
+                type="button"
+                class="inline-flex items-center gap-1.5 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-bold text-red-600 transition hover:bg-red-600 hover:text-white active:scale-95 sm:text-sm"
+                :title="`Hapus kelas ${item.name}`"
+                :aria-label="`Hapus kelas ${item.name}`"
+                @click="handleDeleteClass(item, $event)"
+              >
+                <Trash2 :size="15" aria-hidden="true" />
+                Hapus
+              </button>
+            </div>
+          </div>
+        </template>
+      </li>
+    </ul>
+  </div>
+</section>
 
     <!-- ============================== SISWA ============================== -->
-    <section v-else-if="activeTab === 'students'" class="mt-6 space-y-6 animate-fade-in">
-      <div class="card">
-        <div class="flex items-center gap-2">
-          <h2 class="text-xl font-extrabold text-slate-900">Tambah Siswa</h2>
-          <InfoButton
-            label="Info Tambah Siswa"
-            @open="showInfo('Tambah Siswa', 'Tambah siswa ke kelasnya, pindahkan antar kelas, serta reset atau hapus siswa beserta poinnya. Nama siswa boleh sama asal beda kelas.')"
-          />
-        </div>
+<section v-else-if="activeTab === 'students'" class="mt-6 space-y-6 animate-fade-in">
+  <!-- Card 1: Form Tambah Siswa -->
+<div class="rounded-3xl bg-white p-6 shadow-lg shadow-slate-200/50 ring-1 ring-slate-200/80 sm:p-7">
+  <!-- Header: Judul di kiri, tombol Import di kanan -->
+  <div class="flex items-center justify-between gap-3 border-b border-slate-100 pb-4">
+    <div class="flex items-center gap-3">
+      <h2 class="text-xl font-extrabold tracking-tight text-slate-900 sm:text-2xl">Tambah Siswa</h2>
+      <InfoButton
+        label="Info Tambah Siswa"
+        @open="showInfo('Tambah Siswa', 'Tambah siswa ke kelasnya, pindahkan antar kelas, serta reset atau hapus siswa beserta poinnya. Nama siswa boleh sama asal beda kelas.')"
+      />
+    </div>
 
-        <form class="mt-5 flex flex-col gap-3 sm:flex-row" @submit.prevent="handleAddStudent">
-          <input
-            v-model="newStudentName"
-            type="text"
-            class="input flex-1"
-            placeholder="Nama siswa..."
-            maxlength="60"
-          />
-          <select v-model="newStudentClassId" class="input sm:w-56" aria-label="Kelas siswa baru">
-            <option value="" disabled>Pilih kelas...</option>
-            <option v-for="item in classList" :key="item.id" :value="item.id">{{ item.name }}</option>
-          </select>
-          <button type="submit" class="btn-primary whitespace-nowrap" :disabled="isAddingStudent">
-            <Plus :size="20" aria-hidden="true" />
-            {{ isAddingStudent ? 'Menyimpan...' : 'Tambah Siswa' }}
-          </button>
-        </form>
+    <button
+      type="button"
+      class="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-bold text-emerald-700 transition hover:bg-emerald-600 hover:text-white active:scale-95 shrink-0"
+      @click="showImportStudents = true"
+    >
+      <FileSpreadsheet :size="18" aria-hidden="true" />
+      Import dari CSV / Excel
+    </button>
+  </div>
 
-        <p v-if="studentsError" class="mt-4 rounded-2xl bg-red-50 px-4 py-3 font-semibold text-red-600">
-          {{ studentsError }}
-        </p>
+  <form class="mt-5 flex flex-col gap-3.5 sm:flex-row sm:items-center" @submit.prevent="handleAddStudent">
+    <input
+      v-model="newStudentName"
+      type="text"
+      class="flex-1 rounded-xl border-slate-300 bg-slate-50/80 px-4 py-3 text-base font-semibold text-slate-800 placeholder-slate-400 outline-none ring-1 ring-slate-300 transition focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/20"
+      placeholder="Nama lengkap siswa..."
+      maxlength="60"
+    />
+    <select
+      v-model="newStudentClassId"
+      class="rounded-xl border-slate-300 bg-slate-50/80 px-4 py-3 text-base font-semibold text-slate-700 outline-none ring-1 ring-slate-300 transition focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 sm:w-60"
+      aria-label="Kelas siswa baru"
+    >
+      <option value="" disabled>Pilih kelas...</option>
+      <option v-for="item in classList" :key="item.id" :value="item.id">{{ item.name }}</option>
+    </select>
+    <button
+      type="submit"
+      class="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-base font-bold text-white shadow-md shadow-indigo-500/20 transition hover:bg-indigo-700 active:scale-95 disabled:opacity-50 whitespace-nowrap"
+      :disabled="isAddingStudent"
+    >
+      <Plus :size="20" aria-hidden="true" />
+      {{ isAddingStudent ? 'Menyimpan...' : 'Tambah Siswa' }}
+    </button>
+  </form>
+
+  <p v-if="studentsError" class="mt-4 flex items-center gap-2 rounded-2xl bg-red-50 p-4 text-sm font-bold text-red-600 ring-1 ring-inset ring-red-500/10">
+    {{ studentsError }}
+  </p>
+</div>
+
+  <!-- Card 2: Daftar Siswa & Filter -->
+  <div class="rounded-3xl bg-white p-6 shadow-lg shadow-slate-200/50 ring-1 ring-slate-200/80 sm:p-7">
+    <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
+      <div class="flex items-center gap-3">
+        <h3 class="text-xl font-extrabold tracking-tight text-slate-900 sm:text-2xl">
+          Daftar Siswa
+        </h3>
+        <span class="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-sm font-bold text-slate-700 ring-1 ring-inset ring-slate-500/10">
+          {{ filteredStudents.length }} Siswa
+        </span>
       </div>
 
-      <div class="card">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <h3 class="text-lg font-extrabold text-slate-900">
-            Daftar Siswa
-            <span class="ml-1 text-slate-400">({{ filteredStudents.length }})</span>
-          </h3>
-        </div>
+      <button
+        type="button"
+        class="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-600 transition hover:bg-red-600 hover:text-white active:scale-95 disabled:opacity-50"
+        :disabled="students.length === 0"
+        @click="handleResetAllScores"
+      >
+        <RotateCcw :size="18" aria-hidden="true" />
+        Reset Semua Poin
+      </button>
+    </div>
 
-        <div class="mt-4 flex flex-wrap items-end gap-3">
-          <div class="w-full sm:w-56">
-            <select v-model="studentClassFilter" class="select sm:w-56" aria-label="Filter kelas">
-              <option value="all">Semua Kelas</option>
-              <option v-for="item in classList" :key="item.id" :value="item.id">
-                {{ item.name }}
-              </option>
-            </select>
-          </div>
+    <!-- Filter & Search -->
+    <div class="mt-5 flex flex-wrap items-center gap-3.5">
+      <div class="w-full sm:w-60">
+        <label class="mb-1 block text-xs font-bold text-slate-600">Filter Kelas</label>
+        <select
+          v-model="studentClassFilter"
+          class="w-full rounded-xl border-slate-300 bg-slate-50/80 px-3.5 py-2.5 text-sm font-bold text-slate-700 outline-none ring-1 ring-slate-300 transition focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/20"
+          aria-label="Filter kelas"
+        >
+          <option value="all">Semua Kelas</option>
+          <option v-for="item in classList" :key="item.id" :value="item.id">
+            {{ item.name }}
+          </option>
+        </select>
+      </div>
 
-          <div class="relative w-full sm:w-56">
-            <Search :size="18" aria-hidden="true" class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+      <div class="relative w-full flex-1 sm:min-w-60">
+        <label class="mb-1 block text-xs font-bold text-slate-600">Cari Siswa</label>
+        <Search :size="18" aria-hidden="true" class="pointer-events-none absolute left-3.5 top-[34px] text-slate-400" />
+        <input
+          v-model="studentSearch"
+          type="search"
+          class="w-full rounded-xl border-slate-300 bg-slate-50/80 pl-10 pr-4 py-2 text-sm font-medium text-slate-800 placeholder-slate-400 outline-none ring-1 ring-slate-300 transition focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/20"
+          placeholder="Tulis nama siswa..."
+          aria-label="Cari siswa"
+        />
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div v-if="isLoadingStudents" class="py-12 text-center text-slate-500">
+      <div class="mx-auto h-8 w-8 animate-spin rounded-full border-3 border-indigo-600 border-t-transparent"></div>
+      <p class="mt-3 text-sm font-semibold text-slate-600">Memuat data siswa...</p>
+    </div>
+
+    <!-- Empty State -->
+    <div v-else-if="filteredStudents.length === 0" class="py-12 text-center">
+      <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-2xl">
+        ❓
+      </div>
+      <template v-if="students.length === 0">
+        <p class="mt-3 text-lg font-bold text-slate-800">Belum Ada Siswa</p>
+        <p class="mt-1 text-sm font-medium text-slate-500">Tambahkan siswa menggunakan form di atas.</p>
+      </template>
+      <template v-else>
+        <p class="mt-3 text-lg font-bold text-slate-800">Siswa Tidak Ditemukan</p>
+        <p class="mt-1 text-sm font-medium text-slate-500">Coba ubah kata kunci pencarian atau filter kelas.</p>
+      </template>
+    </div>
+
+    <!-- Daftar Siswa List -->
+    <ul v-else class="mt-5 space-y-3">
+      <li
+        v-for="student in filteredStudents"
+        :key="student.id"
+        class="rounded-2xl bg-slate-50/90 p-4 ring-1 ring-slate-200/80 shadow-xs transition hover:bg-white hover:shadow-md hover:ring-indigo-300 lg:flex lg:items-center lg:justify-between lg:gap-4"
+      >
+        <!-- Mode Edit Nama Siswa -->
+        <template v-if="editingStudentId === student.id">
+          <div class="flex w-full flex-col gap-2.5 sm:flex-row sm:items-center">
             <input
-              v-model="studentSearch"
-              type="search"
-              class="input !pl-11"
-              placeholder="Cari siswa..."
-              aria-label="Cari siswa"
+              v-model="editStudentName"
+              type="text"
+              class="flex-1 rounded-xl border-slate-300 bg-white px-3.5 py-2 text-base font-bold text-slate-800 outline-none ring-2 ring-indigo-500"
+              maxlength="60"
+              :aria-label="`Nama baru untuk ${student.name}`"
+              @keydown.enter.prevent="handleRenameStudent"
+              @keydown.esc="cancelRenameStudent"
             />
+            <div class="flex gap-2">
+              <button
+                type="button"
+                class="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-indigo-700 active:scale-95"
+                :disabled="isSavingStudent"
+                @click="handleRenameStudent"
+              >
+                {{ isSavingStudent ? 'Simpan...' : 'Simpan' }}
+              </button>
+              <button
+                type="button"
+                class="inline-flex items-center justify-center rounded-xl bg-slate-200 px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-300 active:scale-95"
+                @click="cancelRenameStudent"
+              >
+                Batal
+              </button>
+            </div>
           </div>
-        </div>
+        </template>
 
-        <div class="mt-3 flex justify-end">
-          <button
-            type="button"
-            class="btn-danger !px-4 !py-2 !text-sm"
-            :disabled="students.length === 0"
-            @click="handleResetAllScores"
-          >
-            <RotateCcw :size="18" aria-hidden="true" />
-            Reset Semua Poin
-          </button>
-        </div>
+        <!-- Mode Tampilan Normal -->
+        <template v-else>
+          <div class="min-w-0 flex-1">
+            <p class="truncate text-base font-black text-slate-900 sm:text-lg">{{ student.name }}</p>
+            <div class="mt-2 flex flex-wrap items-center gap-2.5">
+              <!-- Dropdown Pindah Kelas -->
+              <select
+                :value="student.class_id ?? ''"
+                class="rounded-lg border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 outline-none ring-1 ring-slate-300 transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 sm:text-sm sm:max-w-48"
+                :aria-label="`Kelas ${student.name}`"
+                @change="handleMoveStudent(student, $event)"
+              >
+                <option value="" disabled>Pilih kelas...</option>
+                <option v-for="item in classList" :key="item.id" :value="item.id">{{ item.name }}</option>
+              </select>
 
-        <div v-if="isLoadingStudents" class="py-10 text-center text-slate-500">Memuat...</div>
+              <!-- Badge Poin Siswa -->
+              <span class="inline-flex items-center rounded-lg bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800 ring-1 ring-inset ring-amber-600/20 sm:text-sm">
+                🏆 {{ student.score }} Poin
+              </span>
+            </div>
+          </div>
 
-        <div v-else-if="filteredStudents.length === 0" class="py-10 text-center">
-          <p class="text-4xl" aria-hidden="true">❓</p>
-          <template v-if="students.length === 0">
-            <p class="mt-2 font-bold text-slate-700">Belum Ada Siswa</p>
-            <p class="text-slate-500">Tambahkan siswa dengan form di atas.</p>
-          </template>
-          <template v-else>
-            <p class="mt-2 font-bold text-slate-700">Siswa tidak ditemukan.</p>
-            <p class="text-slate-500">Coba kata kunci atau filter lain.</p>
-          </template>
-        </div>
-
-        <ul v-else class="mt-4 space-y-3">
-          <li v-for="student in filteredStudents" :key="student.id" class="rounded-2xl bg-slate-50 p-3.5 ring-1 ring-slate-100 sm:flex sm:items-center sm:gap-3">
-            <template v-if="editingStudentId === student.id">
-              <div class="flex min-w-0 flex-1 flex-col gap-2">
-                <input
-                  v-model="editStudentName"
-                  type="text"
-                  class="input"
-                  maxlength="60"
-                  :aria-label="`Nama baru untuk ${student.name}`"
-                  @keydown.enter.prevent="handleRenameStudent"
-                  @keydown.esc="cancelRenameStudent"
-                />
-                <div class="flex gap-2">
-                  <button
-                    type="button"
-                    class="btn-primary flex-1 whitespace-nowrap !px-4 !py-2 !text-base"
-                    :disabled="isSavingStudent"
-                    @click="handleRenameStudent"
-                  >
-                    {{ isSavingStudent ? 'Menyimpan...' : 'Simpan' }}
-                  </button>
-                  <button
-                    type="button"
-                    class="btn-neutral flex-1 whitespace-nowrap !px-4 !py-2 !text-base"
-                    @click="cancelRenameStudent"
-                  >
-                    Batal
-                  </button>
-                </div>
-              </div>
-            </template>
-            <template v-else>
-              <div class="min-w-0 flex-1">
-                <p class="truncate text-base font-extrabold text-slate-800">{{ student.name }}</p>
-                <div class="mt-2 flex flex-wrap items-center gap-2">
-                  <select
-                    :value="student.class_id ?? ''"
-                    class="input w-auto flex-1 py-2 text-base sm:max-w-48 sm:flex-none"
-                    :aria-label="`Kelas ${student.name}`"
-                    @change="handleMoveStudent(student, $event)"
-                  >
-                    <option value="" disabled>Pilih kelas...</option>
-                    <option v-for="item in classList" :key="item.id" :value="item.id">{{ item.name }}</option>
-                  </select>
-                  <span class="chip bg-accent-100 text-accent-600">{{ student.score }} Poin</span>
-                </div>
-              </div>
-              <div class="mt-2.5 flex shrink-0 gap-2 sm:mt-0">
-                <button
-                  type="button"
-                  class="icon-btn-brand"
-                  :title="`Ubah nama ${student.name}`"
-                  :aria-label="`Ubah nama ${student.name}`"
-                  @click="startRenameStudent(student)"
-                >
-                  <Pencil :size="18" aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  class="icon-btn-brand"
-                  :title="`Reset poin ${student.name}`"
-                  :aria-label="`Reset poin ${student.name}`"
-                  @click="handleResetStudent(student)"
-                >
-                  <RotateCcw :size="18" aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  class="icon-btn-danger"
-                  :title="`Hapus ${student.name}`"
-                  :aria-label="`Hapus ${student.name}`"
-                  @click="handleDeleteStudent(student)"
-                >
-                  <Trash2 :size="18" aria-hidden="true" />
-                </button>
-              </div>
-            </template>
-          </li>
-        </ul>
-      </div>
-    </section>
+          <!-- Tombol Aksi Siswa -->
+          <div class="mt-3.5 flex flex-wrap items-center gap-2 border-t border-slate-200/60 pt-3 lg:mt-0 lg:border-t-0 lg:pt-0">
+            <button
+              type="button"
+              class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700 transition hover:bg-indigo-600 hover:text-white active:scale-95 sm:text-sm"
+              :title="`Ubah nama ${student.name}`"
+              :aria-label="`Ubah nama ${student.name}`"
+              @click="startRenameStudent(student)"
+            >
+              <Pencil :size="15" aria-hidden="true" />
+              Edit
+            </button>
+            <button
+              type="button"
+              class="inline-flex items-center gap-1.5 rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-700 transition hover:bg-amber-600 hover:text-white active:scale-95 sm:text-sm"
+              :title="`Reset poin ${student.name}`"
+              :aria-label="`Reset poin ${student.name}`"
+              @click="handleResetStudent(student)"
+            >
+              <RotateCcw :size="15" aria-hidden="true" />
+              Reset Poin
+            </button>
+            <button
+              type="button"
+              class="inline-flex items-center gap-1.5 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-bold text-red-600 transition hover:bg-red-600 hover:text-white active:scale-95 sm:text-sm"
+              :title="`Hapus ${student.name}`"
+              :aria-label="`Hapus ${student.name}`"
+              @click="handleDeleteStudent(student)"
+            >
+              <Trash2 :size="15" aria-hidden="true" />
+              Hapus
+            </button>
+          </div>
+        </template>
+      </li>
+    </ul>
+  </div>
+</section>
 
     <!-- =============================== SOAL =============================== -->
     <section v-else-if="activeTab === 'questions'" class="mt-6 space-y-6 animate-fade-in">
@@ -1606,837 +1742,1053 @@ onMounted(async () => {
       </p>
 
       <!-- ==================== TINGKAT 1: DAFTAR MATERI ==================== -->
-      <template v-if="!activeSubject">
-        <!-- Form tambah materi: terpisah dari form soal -->
-        <div v-if="!needsMigration" class="card">
-          <div class="flex items-center gap-2">
-            <h2 class="text-xl font-extrabold text-slate-900">Tambah Materi</h2>
-            <InfoButton
-              label="Info Tambah Materi"
-              @open="showInfo('Tambah Materi', 'Kelola bank soal per materi. Buat materi dulu, lalu klik kartunya untuk menambah soal pilihan ganda atau isian singkat.')"
-            />
-          </div>
+<template v-if="!activeSubject">
+  <!-- Form Tambah Materi -->
+  <div v-if="!needsMigration" class="rounded-3xl bg-white p-6 shadow-lg shadow-slate-200/50 ring-1 ring-slate-200/80 sm:p-7">
+    <div class="flex items-center gap-3 border-b border-slate-100 pb-4">
+      <h2 class="text-xl font-extrabold tracking-tight text-slate-900 sm:text-2xl">Tambah Materi</h2>
+      <InfoButton
+        label="Info Tambah Materi"
+        @open="showInfo('Tambah Materi', 'Kelola bank soal per materi. Buat materi dulu, lalu klik kartunya untuk menambah soal pilihan ganda atau isian singkat.')"
+      />
+    </div>
 
-          <form class="mt-4 flex flex-col gap-3 sm:flex-row" @submit.prevent="handleAddSubject">
-            <input
-              v-model="newSubjectName"
-              type="text"
-              class="input flex-1"
-              placeholder="Nama materi baru, contoh: Trigonometri"
-              maxlength="60"
-            />
-            <button type="submit" class="btn-primary whitespace-nowrap" :disabled="isAddingSubject">
-              <Plus :size="20" aria-hidden="true" />
-              {{ isAddingSubject ? 'Menyimpan...' : 'Tambah Materi' }}
+    <form class="mt-5 flex flex-col gap-3.5 sm:flex-row sm:items-center" @submit.prevent="handleAddSubject">
+      <input
+        v-model="newSubjectName"
+        type="text"
+        class="flex-1 rounded-xl border-slate-300 bg-slate-50/80 px-4 py-3 text-base font-semibold text-slate-800 placeholder-slate-400 outline-none ring-1 ring-slate-300 transition focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/20"
+        placeholder="Nama materi baru, contoh: Trigonometri"
+        maxlength="60"
+      />
+      <button
+        type="submit"
+        class="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 text-base font-bold text-white shadow-md shadow-indigo-500/20 transition hover:bg-indigo-700 active:scale-95 disabled:opacity-50 whitespace-nowrap sm:w-auto"
+        :disabled="isAddingSubject"
+      >
+        <Plus :size="20" aria-hidden="true" />
+        {{ isAddingSubject ? 'Menyimpan...' : 'Tambah Materi' }}
+      </button>
+    </form>
+  </div>
+
+  <!-- Loading State -->
+  <div v-if="isLoadingSubjects || isLoadingQuestions" class="rounded-3xl bg-white p-12 text-center text-slate-500 shadow-lg shadow-slate-200/50 ring-1 ring-slate-200/80">
+    <div class="mx-auto h-8 w-8 animate-spin rounded-full border-3 border-indigo-600 border-t-transparent"></div>
+    <p class="mt-3 text-sm font-semibold text-slate-600">Memuat data materi & soal...</p>
+  </div>
+
+  <!-- Empty State -->
+  <div v-else-if="subjectCards.length === 0" class="rounded-3xl bg-white p-12 text-center shadow-lg shadow-slate-200/50 ring-1 ring-slate-200/80">
+    <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-3xl">
+      📘
+    </div>
+    <h3 class="mt-4 text-xl font-extrabold text-slate-900 sm:text-2xl">Belum Ada Materi</h3>
+    <p class="mt-1 text-sm font-medium text-slate-500">Tambahkan materi baru dengan form di atas.</p>
+  </div>
+
+  <!-- Grid Cards Materi -->
+  <div v-else class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+    <div
+      v-for="card in subjectCards"
+      :key="card.id"
+      role="button"
+      tabindex="0"
+      class="group relative flex cursor-pointer flex-col justify-between rounded-3xl bg-white p-6 shadow-md shadow-slate-200/60 ring-1 ring-slate-200/80 transition duration-200 hover:-translate-y-1 hover:shadow-xl hover:ring-indigo-300 focus:outline-none focus-visible:ring-4 focus-visible:ring-indigo-300 active:scale-[0.98]"
+      @click="openSubject(card.name)"
+      @keydown.enter="openSubject(card.name)"
+      @keydown.space.prevent="openSubject(card.name)"
+    >
+      <!-- Mode Edit Nama Materi -->
+      <template v-if="editingSubjectId === card.id">
+        <div class="w-full" @click.stop @keydown.stop>
+          <label class="mb-1.5 block text-xs font-bold text-slate-600" :for="`rename-${card.id}`">Nama Materi</label>
+          <input
+            :id="`rename-${card.id}`"
+            v-model="editSubjectName"
+            type="text"
+            class="w-full rounded-xl border-slate-300 bg-white px-3.5 py-2.5 text-base font-bold text-slate-800 outline-none ring-2 ring-indigo-500"
+            maxlength="60"
+            @keydown.enter.prevent="handleRenameSubject"
+            @keydown.esc="cancelRenameSubject"
+          />
+          <div class="mt-3.5 flex gap-2">
+            <button
+              type="button"
+              class="flex-1 rounded-xl bg-indigo-600 py-2 text-sm font-bold text-white transition hover:bg-indigo-700 active:scale-95"
+              :disabled="isSavingSubject"
+              @click="handleRenameSubject"
+            >
+              {{ isSavingSubject ? 'Simpan...' : 'Simpan' }}
             </button>
-          </form>
-        </div>
-
-        <div v-if="isLoadingSubjects || isLoadingQuestions" class="card py-10 text-center text-slate-500">
-          Memuat...
-        </div>
-
-        <div v-else-if="subjectCards.length === 0" class="card py-12 text-center">
-          <p class="text-5xl" aria-hidden="true">❓</p>
-          <h3 class="mt-3 text-2xl font-extrabold text-slate-900">Belum Ada Materi</h3>
-          <p class="mt-2 text-slate-500">Tambahkan materi dengan form di atas.</p>
-        </div>
-
-        <div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div
-            v-for="card in subjectCards"
-            :key="card.id"
-            role="button"
-            tabindex="0"
-            class="group flex cursor-pointer flex-col gap-2 rounded-3xl bg-white p-6 text-left shadow-card
-                   transition duration-200 hover:-translate-y-1 hover:shadow-card-hover
-                   focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-300 active:scale-[0.98]"
-            @click="openSubject(card.name)"
-            @keydown.enter="openSubject(card.name)"
-            @keydown.space.prevent="openSubject(card.name)"
-          >
-            <!-- Mode edit nama materi -->
-            <template v-if="editingSubjectId === card.id">
-              <div @click.stop @keydown.stop>
-                <label class="label" :for="`rename-${card.id}`">Nama Materi</label>
-                <input
-                  :id="`rename-${card.id}`"
-                  v-model="editSubjectName"
-                  type="text"
-                  class="input"
-                  maxlength="60"
-                  @keydown.enter.prevent="handleRenameSubject"
-                  @keydown.esc="cancelRenameSubject"
-                />
-                <div class="mt-3 flex gap-2">
-                  <button
-                    type="button"
-                    class="btn-primary flex-1 py-2 text-base"
-                    :disabled="isSavingSubject"
-                    @click="handleRenameSubject"
-                  >
-                    {{ isSavingSubject ? 'Menyimpan...' : 'Simpan' }}
-                  </button>
-                  <button type="button" class="btn-neutral flex-1 py-2 text-base" @click="cancelRenameSubject">
-                    Batal
-                  </button>
-                </div>
-              </div>
-            </template>
-
-            <template v-else>
-              <span class="text-3xl" aria-hidden="true">📘</span>
-              <span class="text-xl font-extrabold text-slate-800 group-hover:text-brand-700">
-                {{ card.name }}
-              </span>
-              <span class="chip w-fit bg-brand-50 text-brand-700">
-                {{ card.total }} soal
-              </span>
-              <span class="text-sm font-semibold text-slate-400">
-                Pilihan Ganda {{ card.multipleChoice }} · Isian {{ card.shortAnswer }}
-              </span>
-
-              <div v-if="!needsMigration" class="mt-2 flex gap-2" @click.stop>
-                <button
-                  type="button"
-                  class="icon-btn-brand"
-                  :title="`Ubah nama materi ${card.name}`"
-                  :aria-label="`Ubah nama materi ${card.name}`"
-                  @click="startRenameSubject(card, $event)"
-                >
-                  <Pencil :size="18" aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  class="icon-btn-danger"
-                  :title="`Hapus materi ${card.name}`"
-                  :aria-label="`Hapus materi ${card.name}`"
-                  @click="handleDeleteSubject(card, $event)"
-                >
-                  <Trash2 :size="18" aria-hidden="true" />
-                </button>
-              </div>
-            </template>
+            <button
+              type="button"
+              class="flex-1 rounded-xl bg-slate-200 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-300 active:scale-95"
+              @click="cancelRenameSubject"
+            >
+              Batal
+            </button>
           </div>
         </div>
       </template>
 
-      <!-- ============ TINGKAT 2: SOAL DALAM SEBUAH MATERI ============ -->
+      <!-- Mode Normal Card -->
       <template v-else>
-        <!-- Tombol kembali: di atas card, tanpa border, dengan shadow -->
-        <button
-          type="button"
-          class="btn-neutral w-fit shadow-card ring-0 hover:shadow-card-hover !px-4 !py-2 !text-base"
-          @click="backToSubjects"
-        >
-          <ArrowLeft :size="18" aria-hidden="true" />
-          Kembali
-        </button>
-
-        <!-- Judul + info materi -->
-        <div class="card">
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 class="text-2xl font-extrabold text-slate-900">{{ activeSubject }}</h2>
-              <p class="mt-1 text-slate-500">{{ subjectQuestions.length }} soal pada materi ini</p>
+        <div>
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-2xl text-indigo-600 ring-1 ring-inset ring-indigo-500/10 transition group-hover:bg-indigo-600 group-hover:text-white">
+              📘
             </div>
+            <span class="inline-flex items-center rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700 ring-1 ring-inset ring-indigo-600/20">
+              {{ card.total }} Soal
+            </span>
+          </div>
 
-            <div class="grid w-full grid-cols-2 gap-2 sm:w-auto sm:flex sm:flex-wrap">
-              <button
-                type="button"
-                class="btn-word !px-3 !py-2 !text-sm"
-                @click="showImport = true"
-              >
-                <FileUp :size="18" aria-hidden="true" />
-                Import Word
-              </button>
-              <button
-                v-if="!showQuestionForm"
-                type="button"
-                class="btn-primary !px-3 !py-2 !text-sm"
-                @click="startAddQuestion"
-              >
-                <Plus :size="20" aria-hidden="true" />
-                Tambah Soal
-              </button>
-            </div>
+          <h3 class="mt-4 text-lg font-black tracking-tight text-slate-900 group-hover:text-indigo-600 sm:text-xl">
+            {{ card.name }}
+          </h3>
+
+          <div class="mt-3 flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-500">
+            <span class="rounded-md bg-slate-100 px-2 py-1 text-slate-700">PG: {{ card.multipleChoice }}</span>
+            <span class="rounded-md bg-slate-100 px-2 py-1 text-slate-700">Isian: {{ card.shortAnswer }}</span>
           </div>
         </div>
 
-        <!-- Form soal sebagai modal (materinya sudah terkunci) -->
-        <Teleport to="body">
-          <Transition
-            enter-active-class="transition duration-200 ease-out"
-            enter-from-class="opacity-0"
-            leave-active-class="transition duration-150 ease-in"
-            leave-to-class="opacity-0"
+        <!-- Action Buttons -->
+        <div v-if="!needsMigration" class="mt-5 flex items-center gap-2 border-t border-slate-100 pt-3.5" @click.stop>
+          <button
+            type="button"
+            class="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700 transition hover:bg-indigo-600 hover:text-white active:scale-95"
+            :title="`Ubah nama materi ${card.name}`"
+            :aria-label="`Ubah nama materi ${card.name}`"
+            @click="startRenameSubject(card, $event)"
           >
-            <div
-              v-if="showQuestionForm"
-              class="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
-            >
-              <div
-                ref="questionDialogRef"
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="q-form-title"
-                tabindex="-1"
-                class="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-card-hover focus:outline-none sm:rounded-3xl"
-              >
-                <div class="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4 sm:px-6">
-                  <div class="min-w-0">
-                    <h3 id="q-form-title" class="truncate text-lg font-extrabold text-slate-900 sm:text-xl">
-                      {{ isEditMode ? 'Edit Soal' : 'Tambah Soal' }}
-                    </h3>
-                    <p class="mt-0.5 truncate text-sm text-slate-500">
-                      Materi: <span class="font-bold text-brand-700">{{ activeSubject }}</span>
-                      <span v-if="!isEditMode && questionStates.length > 1">
-                        · {{ questionStates.length }} soal
-                      </span>
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    class="icon-btn-neutral shrink-0"
-                    aria-label="Tutup"
-                    @click="resetForm"
-                  >
-                    <X :size="18" aria-hidden="true" />
-                  </button>
-                </div>
+            <Pencil :size="14" aria-hidden="true" />
+            Edit
+          </button>
+          <button
+            type="button"
+            class="inline-flex items-center gap-1.5 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-bold text-red-600 transition hover:bg-red-600 hover:text-white active:scale-95"
+            :title="`Hapus materi ${card.name}`"
+            :aria-label="`Hapus materi ${card.name}`"
+            @click="handleDeleteSubject(card, $event)"
+          >
+            <Trash2 :size="14" aria-hidden="true" />
+            Hapus
+          </button>
+        </div>
+      </template>
+    </div>
+  </div>
+</template>
 
-                <div class="flex-1 overflow-y-auto bg-slate-100 px-4 py-4 sm:px-6">
-                  <div class="space-y-4">
-                    <section
-                      v-for="(state, index) in questionStates"
-                      :key="state.key"
-                      class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 sm:p-5"
+      <!-- ============ TINGKAT 2: SOAL DALAM SEBUAH MATERI ============ -->
+      <!-- Tampilan Detail Materi & Soal (Aktif saat materi dipilih) -->
+  <div v-else class="space-y-6">
+    <!-- Tombol kembali: di atas card, tanpa border, dengan shadow -->
+    <button
+      type="button"
+      class="btn-neutral w-fit shadow-md ring-1 ring-slate-200/80 hover:shadow-lg !px-4 !py-2 !text-base transition active:scale-95"
+      @click="backToSubjects"
+    >
+      <ArrowLeft :size="18" aria-hidden="true" />
+      Kembali
+    </button>
+
+    <!-- Judul + info materi -->
+    <div class="rounded-3xl bg-white p-6 shadow-lg shadow-slate-200/50 ring-1 ring-slate-200/80 sm:p-7">
+      <div class="flex flex-wrap items-center justify-between gap-5">
+        <!-- Informasi Materi Aktif -->
+        <div>
+          <span class="text-xs font-bold uppercase tracking-wider text-indigo-600">Materi Terpilih</span>
+          <h2 class="mt-1 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
+            {{ activeSubject }}
+          </h2>
+        </div>
+
+        <!-- Tombol Aksi Utama -->
+        <div class="grid w-full grid-cols-1 gap-3 sm:w-auto sm:flex sm:flex-wrap sm:items-center">
+          <!-- Tombol Import Word -->
+          <button
+            type="button"
+            class="inline-flex items-center justify-center gap-2.5 rounded-2xl border border-blue-200 bg-blue-50/80 px-5 py-3 text-sm font-bold text-blue-700 shadow-xs transition hover:bg-blue-600 hover:text-white active:scale-95 sm:text-base"
+            @click="showImport = true"
+          >
+            <FileUp :size="20" aria-hidden="true" />
+            <span>Import Word</span>
+          </button>
+
+          <!-- Tombol Tambah Soal -->
+          <button
+            v-if="!showQuestionForm"
+            type="button"
+            class="inline-flex items-center justify-center gap-2.5 rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-bold text-white shadow-md shadow-indigo-500/20 transition hover:bg-indigo-700 active:scale-95 sm:text-base"
+            @click="startAddQuestion"
+          >
+            <Plus :size="22" aria-hidden="true" />
+            <span>Tambah Soal Manual</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Form soal sebagai modal (materinya sudah terkunci) -->
+    <Teleport to="body">
+      <Transition
+        enter-active-class="transition duration-200 ease-out"
+        enter-from-class="opacity-0 scale-95"
+        enter-to-class="opacity-100 scale-100"
+        leave-active-class="transition duration-150 ease-in"
+        leave-from-class="opacity-100 scale-100"
+        leave-to-class="opacity-0 scale-95"
+      >
+        <div
+          v-if="showQuestionForm"
+          class="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/60 p-0 backdrop-blur-md sm:items-center sm:p-4"
+        >
+          <div
+            ref="questionDialogRef"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="q-form-title"
+            tabindex="-1"
+            class="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-[28px] bg-white shadow-2xl ring-1 ring-slate-900/10 focus:outline-none sm:rounded-[28px]"
+          >
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between border-b border-slate-100 bg-white px-6 py-4">
+              <div class="min-w-0">
+                <h3 id="q-form-title" class="truncate text-xl font-extrabold tracking-tight text-slate-900">
+                  {{ isEditMode ? 'Edit Soal' : 'Tambah Soal' }}
+                </h3>
+                <p class="mt-0.5 truncate text-xs font-semibold text-slate-500">
+                  Materi: <span class="font-bold text-indigo-600">{{ activeSubject }}</span>
+                  <span v-if="!isEditMode && questionStates.length > 1" class="text-slate-400">
+                    • {{ questionStates.length }} soal disiapkan
+                  </span>
+                </p>
+              </div>
+              <button
+                type="button"
+                class="flex h-9 w-9 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 active:scale-90"
+                aria-label="Tutup"
+                @click="resetForm"
+              >
+                <X :size="20" aria-hidden="true" />
+              </button>
+            </div>
+
+            <!-- Body Scrollable -->
+            <div class="flex-1 overflow-y-auto bg-slate-50/80 p-4 sm:p-6">
+              <div class="space-y-5">
+                <section
+                  v-for="(state, index) in questionStates"
+                  :key="state.key"
+                  class="relative rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200/80 transition-all hover:shadow-md"
+                >
+                  <!-- Badge Soal & Hapus -->
+                  <div class="flex items-center justify-between">
+                    <span class="inline-flex items-center rounded-lg bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700 ring-1 ring-inset ring-indigo-700/10">
+                      Soal #{{ index + 1 }}
+                    </span>
+                    <button
+                      v-if="!isEditMode && questionStates.length > 1"
+                      type="button"
+                      class="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-600 active:scale-90"
+                      :aria-label="`Hapus kartu soal ${index + 1}`"
+                      @click="removeQuestionCard(index)"
                     >
-                      <div class="flex items-center justify-between gap-3">
-                        <span class="chip bg-brand-50 text-brand-700">Soal {{ index + 1 }}</span>
+                      <X :size="18" aria-hidden="true" />
+                    </button>
+                  </div>
+
+                  <!-- Form Controls: Tipe & Waktu -->
+                  <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                      <label class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500" :for="`q-type-${state.key}`">
+                        Tipe Soal
+                      </label>
+                      <select
+                        :id="`q-type-${state.key}`"
+                        v-model="state.form.type"
+                        class="w-full rounded-xl border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm font-semibold text-slate-800 outline-none ring-1 ring-slate-200/80 transition focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/20"
+                      >
+                        <option value="multiple_choice">Pilihan Ganda</option>
+                        <option value="short_answer">Isian Singkat</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500" :for="`q-time-${state.key}`">
+                        Waktu (Detik)
+                      </label>
+                      <input
+                        :id="`q-time-${state.key}`"
+                        v-model="state.form.time_limit"
+                        type="number"
+                        min="0"
+                        max="600"
+                        class="w-full rounded-xl border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm font-semibold text-slate-800 outline-none ring-1 ring-slate-200/80 transition focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/20"
+                        placeholder="Ikut Pengaturan Global"
+                      />
+                    </div>
+                  </div>
+
+                  <!-- Input Teks Pertanyaan -->
+                  <div class="mt-4">
+                    <label class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500" :for="`q-text-${state.key}`">
+                      Pertanyaan
+                    </label>
+                    <textarea
+                      :id="`q-text-${state.key}`"
+                      v-model="state.form.question_text"
+                      rows="3"
+                      class="w-full rounded-xl border-slate-200 bg-slate-50 p-3.5 text-sm font-semibold text-slate-800 outline-none ring-1 ring-slate-200/80 transition focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/20"
+                      placeholder="Tulis pertanyaan di sini..."
+                    />
+
+                    <!-- Preview LaTeX / Math -->
+                    <div class="mt-2.5 rounded-xl border border-slate-100 bg-slate-50/80 p-3.5 text-sm text-slate-700">
+                      <span class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Pratinjau Tampilan:</span>
+                      <MathText v-if="state.form.question_text.trim()" :text="state.form.question_text" />
+                      <span v-else class="text-xs italic text-slate-400">Pratinjau rumus/teks akan tampil di sini...</span>
+                    </div>
+                  </div>
+
+                  <!-- Area Unggah Gambar -->
+                  <div class="mt-4">
+                    <span class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500">
+                      Gambar Lampiran <span class="font-normal text-slate-400">(opsional)</span>
+                    </span>
+                    <div
+                      class="relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-5 text-center transition"
+                      :class="[
+                        imageColumnAvailable === false
+                          ? 'border-slate-200 bg-slate-50 opacity-60'
+                          : state.dragging
+                            ? 'border-indigo-500 bg-indigo-50/50'
+                            : 'border-slate-200 bg-slate-50/50 hover:bg-slate-50'
+                      ]"
+                      @dragover.prevent="onQuestionImageDragOver(state)"
+                      @dragenter.prevent="onQuestionImageDragOver(state)"
+                      @dragleave="onQuestionImageDragLeave(state, $event)"
+                      @drop.prevent="onQuestionImageDrop(state, $event)"
+                    >
+                      <!-- Tampilan Jika Gambar Ada -->
+                      <div v-if="questionPreview(state)" class="group relative">
+                        <img
+                          :src="questionPreview(state)"
+                          :alt="`Pratinjau gambar`"
+                          class="max-h-48 rounded-xl object-contain ring-1 ring-slate-200"
+                        />
                         <button
-                          v-if="!isEditMode && questionStates.length > 1"
                           type="button"
-                          class="icon-btn-danger !h-9 !w-9"
-                          :aria-label="`Hapus kartu soal ${index + 1}`"
-                          @click="removeQuestionCard(index)"
+                          class="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full bg-red-500 text-white shadow-md transition hover:bg-red-600 active:scale-90"
+                          title="Hapus gambar"
+                          @click="removeQuestionImage(state)"
                         >
-                          <X :size="16" aria-hidden="true" />
+                          <X :size="14" />
                         </button>
                       </div>
 
-                      <div class="grid grid-cols-2 gap-4 mt-4">
-                        <div>
-                          <label class="label" :for="`q-type-${state.key}`">Tipe Soal</label>
-                          <select :id="`q-type-${state.key}`" v-model="state.form.type" class="input">
-                            <option value="multiple_choice">Pilihan Ganda</option>
-                            <option value="short_answer">Isian Singkat</option>
-                          </select>
+                      <!-- Placeholder Belum Ada Gambar -->
+                      <template v-else>
+                        <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+                          <ImagePlus :size="24" />
                         </div>
-                        <div>
-                          <label class="label" :for="`q-time-${state.key}`">Waktu (detik)</label>
-                          <input
-                            :id="`q-time-${state.key}`"
-                            v-model="state.form.time_limit"
-                            type="number"
-                            min="0"
-                            max="600"
-                            class="input"
-                            placeholder="Ikut global"
-                          />
-                        </div>
+                        <p class="mt-2 text-xs font-bold text-slate-700">Tarik gambar ke sini, atau pilih dari perangkat</p>
+                        <p class="text-[11px] font-semibold text-slate-400">PNG, JPG, WebP (Maks 5MB)</p>
+                      </template>
+
+                      <label
+                        :for="`q-image-${state.key}`"
+                        class="mt-3 inline-flex cursor-pointer items-center gap-1.5 rounded-xl bg-white px-3.5 py-1.5 text-xs font-bold text-slate-700 shadow-xs ring-1 ring-slate-200 transition hover:bg-slate-50 active:scale-95"
+                        :class="{ 'pointer-events-none opacity-50': imageColumnAvailable === false }"
+                      >
+                        <ImagePlus :size="14" />
+                        {{ questionPreview(state) ? 'Ganti Gambar' : 'Pilih File' }}
+                        <input
+                          :id="`q-image-${state.key}`"
+                          :ref="(node) => setQuestionImageRef(state.key, node)"
+                          type="file"
+                          accept="image/*"
+                          class="hidden"
+                          :disabled="imageColumnAvailable === false"
+                          @change="onQuestionImageSelect(state, $event)"
+                        />
+                      </label>
+                    </div>
+                  </div>
+
+                  <!-- Options Pilihan Ganda -->
+                  <div v-if="state.form.type === 'multiple_choice'" class="mt-5 space-y-2.5">
+                    <div class="flex items-center justify-between">
+                      <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Pilihan Jawaban</span>
+                      <button
+                        type="button"
+                        class="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 transition hover:text-indigo-700 disabled:opacity-40"
+                        :disabled="state.form.options.length >= MAX_OPTIONS"
+                        @click="addOption(state)"
+                      >
+                        <Plus :size="14" /> Tambah Pilihan
+                      </button>
+                    </div>
+
+                    <div
+                      v-for="option in state.form.options"
+                      :key="option.label"
+                      class="flex flex-col gap-2 rounded-xl bg-slate-50/80 p-2.5 ring-1 ring-slate-200/60"
+                    >
+                      <div class="flex items-center gap-2">
+                        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-100/70 text-sm font-extrabold text-indigo-700">
+                          {{ option.label }}
+                        </span>
+                        <input
+                          v-model="option.text"
+                          type="text"
+                          class="w-full min-w-0 rounded-lg border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-800 outline-none ring-1 ring-slate-200/80 transition focus:ring-2 focus:ring-indigo-500/20"
+                          :placeholder="`Jawaban ${option.label}...`"
+                        />
+                        <button
+                          type="button"
+                          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-slate-400 ring-1 ring-slate-200 transition hover:text-indigo-600 active:scale-90"
+                          title="Tambah Gambar Opsi"
+                          @click="pickOptionImage(state, option.label)"
+                        >
+                          <ImagePlus :size="16" />
+                        </button>
+                        <button
+                          type="button"
+                          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-slate-400 ring-1 ring-slate-200 transition hover:bg-red-50 hover:text-red-600 active:scale-90 disabled:opacity-30"
+                          :disabled="state.form.options.length <= 2"
+                          @click="removeOption(state, option.label)"
+                        >
+                          <X :size="16" />
+                        </button>
                       </div>
 
-            <div class="mt-4">
-              <label class="label" :for="`q-text-${state.key}`">Pertanyaan</label>
-              <textarea
-                :id="`q-text-${state.key}`"
-                v-model="state.form.question_text"
-                class="input min-h-[7rem] leading-relaxed"
-                placeholder="Tulis pertanyaan di sini..."
-              />
-              <div class="mt-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <div class="text-lg text-slate-800">
-                  <MathText v-if="state.form.question_text.trim()" :text="state.form.question_text" />
-                  <span v-else class="text-slate-400">Pratinjau soal muncul di sini.</span>
-                </div>
-              </div>
-            </div>
+                      <!-- Math preview opsi -->
+                      <div v-if="hasMath(option.text)" class="ml-11 rounded-lg bg-white px-2.5 py-1 text-xs text-slate-700 ring-1 ring-slate-200/60">
+                        <MathText :text="option.text" />
+                      </div>
 
-            <div class="mt-4">
-              <span class="label">Gambar Soal <span class="font-normal text-slate-400">(opsional)</span></span>
+                      <!-- Option Image Preview -->
+                      <div v-if="optionPreview(option)" class="ml-11 flex items-center gap-2">
+                        <img :src="optionPreview(option)" class="h-10 rounded-md object-contain ring-1 ring-slate-200" />
+                        <button
+                          type="button"
+                          class="text-[11px] font-bold text-red-500 hover:underline"
+                          @click="removeOptionImage(state, option)"
+                        >
+                          Hapus
+                        </button>
+                      </div>
+                    </div>
+                  </div>
 
-              <div
-                class="rounded-2xl border-2 border-dashed p-5 text-center transition sm:p-6"
-                :class="imageColumnAvailable === false
-                  ? 'border-slate-200 bg-slate-50 opacity-60'
-                  : state.dragging
-                    ? 'border-brand-400 bg-brand-50'
-                    : 'border-slate-200 bg-slate-50/60'"
-                @dragover.prevent="onQuestionImageDragOver(state)"
-                @dragenter.prevent="onQuestionImageDragOver(state)"
-                @dragleave="onQuestionImageDragLeave(state, $event)"
-                @drop.prevent="onQuestionImageDrop(state, $event)"
-              >
-                <div v-if="questionPreview(state)" class="relative mx-auto w-fit">
-                  <img
-                    :src="questionPreview(state)"
-                    :alt="`Pratinjau gambar soal: ${state.form.question_text || 'soal'}`"
-                    class="max-h-56 w-auto rounded-2xl object-contain ring-1 ring-slate-200"
+                  <input
+                    :ref="(node) => setOptionImageRef(state.key, node)"
+                    type="file"
+                    accept="image/*"
+                    class="hidden"
+                    @change="onOptionImageSelect(state, $event)"
                   />
-                  <button
-                    type="button"
-                    class="absolute -right-2 -top-2 inline-flex h-8 w-8 items-center justify-center rounded-full
-                           bg-red-500 text-white shadow-card transition hover:bg-red-600 active:scale-95"
-                    title="Hapus gambar"
-                    aria-label="Hapus gambar"
-                    @click="removeQuestionImage(state)"
-                  >
-                    <X :size="16" aria-hidden="true" />
-                  </button>
-                </div>
 
-                <template v-else>
-                  <span class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-50 text-brand-500">
-                    <ImagePlus :size="28" aria-hidden="true" />
-                  </span>
-                  <p class="mt-3 font-extrabold text-slate-700">Unggah Gambar Soal</p>
-                  <p class="mt-1 text-sm text-slate-400">Tarik file ke sini atau pilih dari perangkat</p>
-                </template>
-
-                <div :class="questionPreview(state) ? 'mt-4' : 'mt-3'">
-                  <label
-                    :for="`q-image-${state.key}`"
-                    class="btn-primary w-full !px-4 !py-2.5 !text-base sm:w-auto"
-                    :class="imageColumnAvailable === false
-                      ? 'pointer-events-none cursor-not-allowed opacity-50'
-                      : 'cursor-pointer'"
-                  >
-                    <ImagePlus :size="18" aria-hidden="true" />
-                    {{ questionPreview(state) ? 'Ganti Gambar' : 'Pilih Gambar' }}
+                  <!-- Kunci Jawaban -->
+                  <div class="mt-4">
+                    <label class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-500" :for="`q-answer-${state.key}`">
+                      Kunci Jawaban Benar
+                    </label>
+                    <select
+                      v-if="state.form.type === 'multiple_choice'"
+                      :id="`q-answer-${state.key}`"
+                      v-model="state.form.correct_answer"
+                      class="w-full rounded-xl border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm font-semibold text-slate-800 outline-none ring-1 ring-slate-200/80 transition focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/20"
+                    >
+                      <option value="" disabled>-- Pilih Kunci Jawaban --</option>
+                      <option
+                        v-for="label in state.form.options.map((option) => option.label)"
+                        :key="label"
+                        :value="label"
+                      >
+                        Pilihan {{ label }}
+                      </option>
+                    </select>
                     <input
-                      :id="`q-image-${state.key}`"
-                      :ref="(node) => setQuestionImageRef(state.key, node)"
-                      type="file"
-                      accept="image/*"
-                      class="hidden"
-                      :disabled="imageColumnAvailable === false"
-                      @change="onQuestionImageSelect(state, $event)"
+                      v-else
+                      :id="`q-answer-${state.key}`"
+                      v-model="state.form.correct_answer"
+                      type="text"
+                      class="w-full rounded-xl border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm font-semibold text-slate-800 outline-none ring-1 ring-slate-200/80 transition focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/20"
+                      placeholder="Tulis jawaban pasti di sini..."
                     />
-                  </label>
-                  <p class="mt-2.5 text-xs font-semibold text-slate-400">JPG, PNG, atau WebP (Maks. 5 MB)</p>
-                </div>
-              </div>
-            </div>
+                  </div>
+                </section>
 
-            <div v-if="state.form.type === 'multiple_choice'" class="mt-4 space-y-3">
-              <div class="flex items-center justify-between gap-3">
-                <p class="label mb-0">Pilihan Jawaban</p>
+                <!-- Tombol Tambah Card Soal Lagi -->
                 <button
+                  v-if="!isEditMode"
                   type="button"
-                  class="btn-ghost !text-brand-600"
-                  :disabled="state.form.options.length >= MAX_OPTIONS"
-                  @click="addOption(state)"
+                  class="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-indigo-200 bg-indigo-50/40 p-4 text-sm font-bold text-indigo-600 transition hover:border-indigo-400 hover:bg-indigo-50 active:scale-[0.99]"
+                  @click="addQuestionCard"
                 >
-                  <Plus class="h-4 w-4" aria-hidden="true" />
-                  Tambah Pilihan
+                  <Plus :size="18" /> Tambah Soal Lain
                 </button>
               </div>
-              <div v-for="option in state.form.options" :key="option.label" class="rounded-2xl bg-slate-50 p-3">
-                <div class="flex items-center gap-2">
-                  <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-50 font-extrabold text-brand-700">
-                    {{ option.label }}
-                  </span>
-                  <input
-                    v-model="option.text"
-                    type="text"
-                    class="input min-w-0 flex-1"
-                    :placeholder="`Pilihan ${option.label}...`"
-                    :aria-label="`Pilihan ${option.label} soal ${index + 1}`"
-                  />
-                  <button
-                    type="button"
-                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-slate-500 ring-1 ring-slate-200 transition hover:bg-brand-50 hover:text-brand-700"
-                    :title="`Gambar untuk pilihan ${option.label}`"
-                    :aria-label="`Gambar untuk pilihan ${option.label} soal ${index + 1}`"
-                    @click="pickOptionImage(state, option.label)"
-                  >
-                    <ImagePlus :size="18" aria-hidden="true" />
-                  </button>
-                  <button
-                    type="button"
-                    class="icon-btn-danger"
-                    :disabled="state.form.options.length <= 2"
-                    :title="`Hapus pilihan ${option.label}`"
-                    :aria-label="`Hapus pilihan ${option.label} soal ${index + 1}`"
-                    @click="removeOption(state, option.label)"
-                  >
-                    <X class="h-5 w-5" aria-hidden="true" />
-                  </button>
-                </div>
-                <div v-if="hasMath(option.text)" class="mt-2 rounded-xl bg-white px-3 py-2 text-slate-800 ring-1 ring-slate-200">
-                  <MathText :text="option.text" />
-                </div>
-                <div v-if="optionPreview(option)" class="mt-2 flex items-center gap-2">
-                  <img
-                    :src="optionPreview(option)"
-                    :alt="`Gambar pilihan ${option.label}`"
-                    class="h-14 w-auto rounded-xl object-contain ring-1 ring-slate-200"
-                  />
-                  <button
-                    type="button"
-                    class="btn-ghost !px-2 !py-1 !text-sm !text-red-600"
-                    @click="removeOptionImage(state, option)"
-                  >
-                    Hapus
-                  </button>
-                </div>
-              </div>
             </div>
-            <input
-              :ref="(node) => setOptionImageRef(state.key, node)"
-              type="file"
-              accept="image/*"
-              class="hidden"
-              :aria-label="`Gambar pilihan jawaban soal ${index + 1}`"
-              @change="onOptionImageSelect(state, $event)"
-            />
 
-            <div class="mt-4">
-              <label class="label" :for="`q-answer-${state.key}`">Kunci Jawaban</label>
-              <select
-                v-if="state.form.type === 'multiple_choice'"
-                :id="`q-answer-${state.key}`"
-                v-model="state.form.correct_answer"
-                class="input"
-              >
-                <option value="" disabled>Pilih kunci jawaban...</option>
-                <option
-                  v-for="label in state.form.options.map((option) => option.label)"
-                  :key="label"
-                  :value="label"
-                >
-                  {{ label }}
-                </option>
-              </select>
-              <input
-                v-else
-                :id="`q-answer-${state.key}`"
-                v-model="state.form.correct_answer"
-                type="text"
-                class="input"
-                placeholder="Tulis jawaban yang benar..."
-              />
-            </div>
-                    </section>
-
-                    <!-- Tambah kartu soal lain -->
-                    <button
-                      v-if="!isEditMode"
-                      type="button"
-                      class="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 bg-white px-4 py-4 font-extrabold text-brand-600 transition hover:border-brand-300 hover:bg-brand-50 active:scale-[0.99]"
-                      @click="addQuestionCard"
-                    >
-                      <Plus :size="20" aria-hidden="true" />
-                      Tambah Soal
-                    </button>
-                  </div>
-                </div>
-
-          <!-- Kaki fixed + divider -->
-          <div class="flex items-center justify-between gap-3 border-t-2 border-slate-200 bg-white px-5 py-4 sm:px-6">
-            <button type="button" class="btn-neutral" @click="resetForm">Batal</button>
-            <button
-              type="button"
-              class="btn-primary"
-              :disabled="isSavingQuestion || questionStates.length === 0"
-              @click="handleSaveAll"
-            >
-              {{ isSavingQuestion ? 'Menyimpan...' : isEditMode ? 'Simpan Perubahan' : `Simpan ${questionStates.length} Soal` }}
-            </button>
-          </div>
-              </div>
-            </div>
-          </Transition>
-        </Teleport>
-
-        <!-- Daftar soal materi ini -->
-        <div class="card">
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <h3 class="text-lg font-extrabold text-slate-900">
-              Daftar Soal <span class="ml-1 text-slate-400">({{ subjectQuestions.length }})</span>
-            </h3>
-
-            <div class="flex flex-wrap items-center gap-2">
-              <select v-model="filterType" class="input w-auto py-2 text-base">
-                <option value="all">Semua Tipe</option>
-                <option value="multiple_choice">Pilihan Ganda</option>
-                <option value="short_answer">Isian Singkat</option>
-              </select>
-
+            <!-- Footer Actions -->
+            <div class="flex items-center justify-end gap-3 border-t border-slate-100 bg-white px-6 py-4">
               <button
-                v-if="activeSubjectTotal > 0"
                 type="button"
-                class="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-white px-3 py-2 text-sm font-bold text-red-600 transition hover:bg-red-50 active:scale-[0.98]"
-                @click="handleDeleteAllQuestions"
+                class="rounded-xl px-4 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-slate-100 active:scale-95"
+                @click="resetForm"
               >
-                <Trash2 :size="16" aria-hidden="true" />
-                Hapus Semua Soal
+                Batal
+              </button>
+              <button
+                type="button"
+                class="rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-indigo-600/25 transition hover:bg-indigo-700 active:scale-95 disabled:opacity-50"
+                :disabled="isSavingQuestion || questionStates.length === 0"
+                @click="handleSaveAll"
+              >
+                {{ isSavingQuestion ? 'Menyimpan...' : isEditMode ? 'Simpan Perubahan' : `Simpan (${questionStates.length}) Soal` }}
               </button>
             </div>
           </div>
-
-          <p v-if="questionsError" class="mt-4 rounded-2xl bg-red-50 px-4 py-3 font-semibold text-red-600">
-            {{ questionsError }}
-          </p>
-
-          <div v-if="isLoadingQuestions" class="py-10 text-center text-slate-500">Memuat...</div>
-
-          <div v-else-if="subjectQuestions.length === 0" class="py-10 text-center">
-            <p class="text-4xl" aria-hidden="true">❓</p>
-            <p class="mt-2 font-bold text-slate-700">Belum Ada Soal</p>
-            <p class="text-slate-500">
-              {{ filterType === 'all' ? 'Tambahkan soal pertama untuk materi ini.' : 'Tidak ada soal dengan tipe itu.' }}
-            </p>
-          </div>
-
-          <ul v-else class="mt-4 space-y-3">
-            <li
-              v-for="question in subjectQuestions"
-              :key="question.id"
-              class="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-100"
-            >
-              <div class="flex flex-wrap items-center gap-2">
-                <span class="chip bg-slate-200 text-slate-600">{{ typeLabel(question.type) }}</span>
-                <span class="chip bg-emerald-100 text-emerald-700">Kunci: {{ question.correct_answer }}</span>
-                <span
-                  v-if="question.time_limit !== null && question.time_limit !== undefined"
-                  class="chip bg-brand-50 text-brand-700"
-                >
-                  ⏱ {{ question.time_limit === 0 ? 'Tanpa batas' : `${question.time_limit} dtk` }}
-                </span>
-              </div>
-
-              <MathText class="mt-3 block font-bold text-slate-800" :text="question.question_text" />
-
-              <img
-                v-if="question.image_url"
-                :src="question.image_url"
-                :alt="question.question_text ? `Gambar untuk soal: ${question.question_text}` : 'Gambar soal'"
-                class="mt-3 max-h-40 w-auto rounded-xl object-contain ring-1 ring-slate-200"
-              />
-
-              <ul v-if="question.type === 'multiple_choice' && question.options" class="mt-2 space-y-1">
-                <li v-for="option in question.options" :key="option.label" class="text-slate-600">
-                  <span class="font-extrabold">{{ option.label }}.</span> {{ option.text }}
-                  <img
-                    v-if="option.image"
-                    :src="option.image"
-                    :alt="`Gambar pilihan ${option.label}`"
-                    class="mt-1 block h-16 w-auto rounded-lg object-contain ring-1 ring-slate-200"
-                    loading="lazy"
-                  />
-                </li>
-              </ul>
-
-              <div class="mt-3 flex gap-2">
-                <button
-                  type="button"
-                  class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-brand-100 text-brand-700 transition hover:bg-brand-200 active:scale-95"
-                  title="Edit soal ini"
-                  aria-label="Edit soal ini"
-                  @click="startEdit(question)"
-                >
-                  <Pencil :size="18" aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-red-100 text-red-600 transition hover:bg-red-200 active:scale-95"
-                  title="Hapus soal ini"
-                  aria-label="Hapus soal ini"
-                  @click="handleDeleteQuestion(question)"
-                >
-                  <Trash2 :size="18" aria-hidden="true" />
-                </button>
-              </div>
-            </li>
-          </ul>
         </div>
-      </template>
-    </section>
+      </Transition>
+    </Teleport>
 
-    <!-- ============================ RIWAYAT ============================ -->
-    <section v-else-if="activeTab === 'history'" class="mt-6 space-y-6 animate-fade-in">
-      <div class="card">
-        <div class="mb-2 flex flex-wrap items-center justify-between gap-3">
-          <div class="flex items-center gap-2">
-            <h2 class="text-xl font-extrabold text-slate-900">Riwayat Game</h2>
-            <InfoButton
-              label="Info Riwayat Game"
-              @open="showInfo('Riwayat Game', 'Setiap game yang selesai otomatis tersimpan di sini, lalu papan skor dinol-kan untuk game berikutnya.\n\nDaftar diurutkan dari yang terbaru. Klik salah satu untuk melihat peringkat akhirnya.\n\nTombol Ekspor menyimpan riwayat yang sedang tampil (sesuai filter) ke file Excel/CSV.')"
-            />
-          </div>
+    <!-- Daftar soal materi ini -->
+    <div class="rounded-3xl bg-white p-6 shadow-lg shadow-slate-200/50 ring-1 ring-slate-200/80 sm:p-7">
+      <!-- Header Card & Filter -->
+      <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-5">
+        <div class="flex items-center gap-3">
+          <h3 class="text-xl font-extrabold tracking-tight text-slate-900 sm:text-2xl">
+            Daftar Soal
+          </h3>
+          <span class="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700 ring-1 ring-inset ring-slate-500/10 sm:text-sm">
+            {{ subjectQuestions.length }} Soal
+          </span>
+        </div>
 
-          <button
-            v-if="sessions.length > 0"
-            type="button"
-            class="btn-neutral !px-4 !py-2 !text-base"
-            :disabled="isExportingHistory || filteredSessions.length === 0"
-            @click="handleExportHistory"
+        <div class="flex flex-wrap items-center gap-3">
+          <!-- Select Filter Type -->
+          <select
+            v-model="filterType"
+            class="rounded-xl border-slate-200 bg-slate-50/80 px-4 py-2.5 text-sm font-bold text-slate-700 outline-none ring-1 ring-slate-200 transition focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/20"
           >
-            <Download :size="18" aria-hidden="true" />
-            {{ isExportingHistory ? 'Mengekspor...' : 'Ekspor Excel' }}
+            <option value="all">Semua Tipe Soal</option>
+            <option value="multiple_choice">Pilihan Ganda</option>
+            <option value="short_answer">Isian Singkat</option>
+          </select>
+
+          <!-- Tombol Hapus Semua -->
+          <button
+            v-if="activeSubjectTotal > 0"
+            type="button"
+            class="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-600 transition hover:bg-red-100 hover:text-red-700 active:scale-95"
+            @click="handleDeleteAllQuestions"
+          >
+            <Trash2 :size="18" aria-hidden="true" />
+            Hapus Semua Soal
           </button>
         </div>
+      </div>
 
-        <div v-if="isLoadingSessions" class="py-10 text-center text-slate-500">Memuat...</div>
+      <!-- Alert Error -->
+      <p v-if="questionsError" class="mt-4 flex items-center gap-2 rounded-2xl bg-red-50 p-4 text-sm font-bold text-red-600 ring-1 ring-inset ring-red-500/10">
+        {{ questionsError }}
+      </p>
 
-        <div v-else-if="sessions.length === 0" class="py-10 text-center">
-          <p class="text-4xl" aria-hidden="true">❓</p>
-          <p class="mt-2 font-bold text-slate-700">Belum Ada Riwayat</p>
-          <p class="text-slate-500">Selesaikan satu game sampai tuntas untuk mengisi arsip.</p>
+      <!-- Loading State -->
+      <div v-if="isLoadingQuestions" class="flex flex-col items-center justify-center py-14 text-slate-400">
+        <div class="h-9 w-9 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent"></div>
+        <p class="mt-3 text-sm font-bold text-slate-600">Memuat daftar soal...</p>
+      </div>
+
+      <!-- Empty State -->
+      <div v-else-if="subjectQuestions.length === 0" class="flex flex-col items-center justify-center py-14 text-center">
+        <div class="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-3xl text-slate-400">
+          ❓
         </div>
+        <p class="mt-4 text-lg font-extrabold text-slate-800">Belum Ada Soal</p>
+        <p class="mt-1 text-sm font-medium text-slate-500">
+          {{ filterType === 'all' ? 'Tambahkan soal pertama untuk materi ini.' : 'Tidak ada soal dengan tipe filter tersebut.' }}
+        </p>
+      </div>
 
-        <template v-else>
-          <div class="flex flex-wrap items-end gap-3" aria-label="Filter riwayat">
-            <div class="min-w-40 flex-1">
-              <select id="f-class" v-model="historyClassFilter" class="select" aria-label="Filter kelas">
-                <option value="all">Semua Kelas</option>
-                <option v-for="name in historyClassOptions" :key="name" :value="name">
-                  {{ name }}
-                </option>
-              </select>
-            </div>
+      <!-- Question List -->
+      <ul v-else class="mt-5 space-y-5">
+        <li
+          v-for="question in subjectQuestions"
+          :key="question.id"
+          class="group relative rounded-2xl bg-slate-50/80 p-5 ring-1 ring-slate-200/80 transition hover:bg-white hover:shadow-md hover:ring-indigo-300 sm:p-6"
+        >
+          <!-- Badges Info Soal -->
+          <div class="flex flex-wrap items-center gap-2.5">
+            <span class="inline-flex items-center rounded-lg bg-slate-200/80 px-3 py-1 text-xs font-bold text-slate-800 sm:text-sm">
+              {{ typeLabel(question.type) }}
+            </span>
+            <span class="inline-flex items-center rounded-lg bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800 ring-1 ring-inset ring-emerald-600/20 sm:text-sm">
+              Kunci: {{ question.correct_answer }}
+            </span>
+            <span
+              v-if="question.time_limit !== null && question.time_limit !== undefined"
+              class="inline-flex items-center gap-1 rounded-lg bg-indigo-100 px-3 py-1 text-xs font-bold text-indigo-800 ring-1 ring-inset ring-indigo-700/10 sm:text-sm"
+            >
+              ⏱ {{ question.time_limit === 0 ? 'Tanpa batas' : `${question.time_limit} Detik` }}
+            </span>
+          </div>
 
-            <div class="relative min-w-52 flex-1">
-              <Search :size="18" aria-hidden="true" class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                v-model="sessionSearch"
-                type="search"
-                class="input !pl-11"
-                placeholder="Cari riwayat..."
-                aria-label="Cari riwayat"
+          <!-- Teks Pertanyaan -->
+          <MathText class="mt-4 block text-base font-extrabold leading-relaxed text-slate-900 sm:text-lg" :text="question.question_text" />
+
+          <!-- Gambar Lampiran Soal -->
+          <img
+            v-if="question.image_url"
+            :src="question.image_url"
+            :alt="question.question_text ? `Gambar untuk soal: ${question.question_text}` : 'Gambar soal'"
+            class="mt-4 max-h-56 rounded-2xl object-contain ring-1 ring-slate-200"
+          />
+
+          <!-- Opsi Pilihan Ganda -->
+          <div v-if="question.type === 'multiple_choice' && question.options" class="mt-4 space-y-2">
+            <div
+              v-for="option in question.options"
+              :key="option.label"
+              class="flex flex-col gap-1.5 rounded-xl bg-white p-3 text-sm font-semibold text-slate-800 ring-1 ring-slate-200/80 shadow-xs"
+            >
+              <div class="flex items-start gap-3">
+                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-sm font-extrabold text-indigo-700">
+                  {{ option.label }}
+                </span>
+                <span class="pt-0.5 leading-relaxed text-slate-800 sm:text-base">{{ option.text }}</span>
+              </div>
+              <img
+                v-if="option.image"
+                :src="option.image"
+                :alt="`Gambar pilihan ${option.label}`"
+                class="ml-10 mt-1 h-20 w-auto rounded-xl object-contain ring-1 ring-slate-200"
+                loading="lazy"
               />
             </div>
-
-            <div role="group" aria-label="Filter tanggal riwayat" class="grid w-full grid-cols-2 gap-3">
-              <div>
-                <label class="label" for="f-from">Dari tanggal</label>
-                <input id="f-from" v-model="historyDateFrom" type="date" class="input w-full py-2 text-base" />
-              </div>
-              <div>
-                <label class="label" for="f-to">Sampai tanggal</label>
-                <input id="f-to" v-model="historyDateTo" type="date" class="input w-full py-2 text-base" />
-              </div>
-              <button
-                v-if="historyDateFrom || historyDateTo"
-                type="button"
-                class="btn-neutral col-span-2 w-full !py-3 !text-base sm:w-auto"
-                @click="clearHistoryDate"
-              >
-                <X :size="18" aria-hidden="true" />
-                Bersihkan Filter
-              </button>
-            </div>
           </div>
 
-          <div class="mt-4 border-t border-slate-200"></div>
-
-          <div v-if="filteredSessions.length === 0" class="py-10 text-center">
-            <p class="text-4xl" aria-hidden="true">❓</p>
-            <p class="mt-2 font-bold text-slate-700">Tidak Ada Riwayat</p>
-            <p class="text-slate-500">Belum ada game tersimpan untuk filter ini.</p>
-          </div>
-
-          <ul v-else class="mt-4 space-y-3">
-            <li
-              v-for="session in filteredSessions"
-              :key="session.id"
-              class="rounded-2xl bg-slate-50 p-4 ring-1 ring-slate-100"
+          <!-- Action Buttons -->
+          <div class="mt-5 flex items-center justify-end gap-3 border-t border-slate-200/80 pt-4">
+            <button
+              type="button"
+              class="inline-flex items-center gap-2 rounded-xl bg-indigo-50 px-4 py-2 text-sm font-bold text-indigo-700 transition hover:bg-indigo-600 hover:text-white active:scale-95"
+              title="Edit soal ini"
+              aria-label="Edit soal ini"
+              @click="startEdit(question)"
             >
-              <button
-                type="button"
-                class="flex w-full flex-wrap items-center gap-3 text-left"
-                @click="toggleSessionDetail(session)"
-              >
-                <span class="min-w-0 flex-1">
-                  <span class="block truncate text-lg font-extrabold text-slate-800">
-                    {{ session.class_name }} · {{ session.subject_label }}
-                  </span>
-                  <span class="mt-0.5 block text-sm font-semibold text-slate-400">
-                    {{ formatPlayedAt(session.played_at) }} · {{ session.question_count }} soal
-                  </span>
-                </span>
-                <span
-                  class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-600"
-                  :aria-label="expandedSessionId === session.id ? 'Tutup rincian' : 'Lihat rincian'"
-                >
-                  <component
-                    :is="expandedSessionId === session.id ? ChevronDown : ChevronUp"
-                    :size="18"
-                    aria-hidden="true"
-                  />
-                </span>
-              </button>
+              <Pencil :size="17" aria-hidden="true" />
+              Edit Soal
+            </button>
+            <button
+              type="button"
+              class="inline-flex items-center gap-2 rounded-xl bg-red-50 px-4 py-2 text-sm font-bold text-red-600 transition hover:bg-red-600 hover:text-white active:scale-95"
+              title="Hapus soal ini"
+              aria-label="Hapus soal ini"
+              @click="handleDeleteQuestion(question)"
+            >
+              <Trash2 :size="17" aria-hidden="true" />
+              Hapus
+            </button>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </div>
+</section>
 
-            <div v-if="expandedSessionId === session.id" class="mt-3 border-t border-slate-200 pt-3">
-              <div v-if="isLoadingSessionScores" class="py-4 text-center text-slate-500">
-                Memuat...
-              </div>
-              <ul v-else-if="(sessionScoresCache[session.id] ?? []).length === 0" class="py-2 text-center text-slate-500">
-                <p class="text-3xl" aria-hidden="true">❓</p>
-                <p class="mt-1">Tidak ada skor tersimpan untuk sesi ini.</p>
-              </ul>
-              <ul v-else class="space-y-1.5">
-                <li
-                  v-for="(row, index) in sessionScoresCache[session.id]"
-                  :key="row.id"
-                  class="flex items-center gap-3 rounded-xl bg-white px-3 py-2 ring-1 ring-slate-100"
-                >
-                  <span class="w-6 shrink-0 text-center font-extrabold text-slate-400">{{ index + 1 }}</span>
-                  <span class="min-w-0 flex-1 truncate font-bold text-slate-700">{{ row.student_name }}</span>
-                  <span class="shrink-0 font-extrabold tabular-nums text-slate-700">
-                    {{ row.score }} <span class="text-slate-400">Poin</span>
-                  </span>
-                </li>
-              </ul>
-
-              <div class="mt-3 text-right">
-                <button
-                  type="button"
-                  class="btn-ghost text-red-600 hover:bg-red-50"
-                  @click="handleDeleteSession(session)"
-                >
-                  <Trash2 :size="16" aria-hidden="true" />
-                  Hapus Riwayat Ini
-                </button>
-              </div>
-            </div>
-          </li>
-          </ul>
-        </template>
+    <!-- ============================ RIWAYAT ============================ -->
+<section v-else-if="activeTab === 'history'" class="mt-6 space-y-6 animate-fade-in">
+  <!-- Container Card dengan Shadow di Bagian Bawah -->
+  <div class="rounded-3xl bg-white p-6 shadow-lg shadow-slate-200/50 ring-1 ring-slate-200/80 sm:p-7">
+    <!-- Header Riwayat -->
+    <div class="mb-5 flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
+      <div class="flex items-center gap-3">
+        <h2 class="text-xl font-extrabold tracking-tight text-slate-900 sm:text-2xl">Riwayat Game</h2>
+        <InfoButton
+          label="Info Riwayat Game"
+          @open="showInfo('Riwayat Game', 'Setiap game yang selesai otomatis tersimpan di sini, lalu papan skor dinol-kan untuk game berikutnya.\n\nDaftar diurutkan dari yang terbaru. Klik salah satu untuk melihat peringkat akhirnya.\n\nTombol Ekspor menyimpan riwayat yang sedang tampil (sesuai filter) ke file Excel/CSV.')"
+        />
       </div>
-    </section>
 
-    <!-- ============================ PENGATURAN ============================ -->
-    <section v-else class="mt-6 space-y-6 animate-fade-in">
-      <div class="card">
-        <div class="flex items-center gap-2">
-          <h2 class="text-xl font-extrabold text-slate-900">Pengaturan Kuis</h2>
-          <InfoButton
-            label="Info Pengaturan Kuis"
-            @open="showInfo('Pengaturan Kuis', 'Atur aturan permainan. Pengaturan ini tersimpan di browser ini.')"
+      <button
+        v-if="sessions.length > 0"
+        type="button"
+        class="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-200 active:scale-95 disabled:opacity-50 sm:text-base"
+        :disabled="isExportingHistory || filteredSessions.length === 0"
+        @click="handleExportHistory"
+      >
+        <Download :size="18" aria-hidden="true" />
+        {{ isExportingHistory ? 'Mengekspor...' : 'Ekspor Excel' }}
+      </button>
+    </div>
+
+    <!-- Loading State -->
+    <div v-if="isLoadingSessions" class="py-12 text-center text-slate-500">
+      <div class="mx-auto h-8 w-8 animate-spin rounded-full border-3 border-indigo-600 border-t-transparent"></div>
+      <p class="mt-3 text-sm font-semibold text-slate-600">Memuat riwayat game...</p>
+    </div>
+
+    <!-- Empty State Global -->
+    <div v-else-if="sessions.length === 0" class="py-12 text-center">
+      <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 text-3xl">
+        ❓
+      </div>
+      <p class="mt-4 text-lg font-bold text-slate-800">Belum Ada Riwayat</p>
+      <p class="mt-1 text-sm font-medium text-slate-500">Selesaikan satu game sampai tuntas untuk mengisi arsip.</p>
+    </div>
+
+    <template v-else>
+      <!-- Controls Filter & Pencarian -->
+      <div class="flex flex-wrap items-end gap-3.5" aria-label="Filter riwayat">
+        <!-- Filter Kelas -->
+        <div class="min-w-44 flex-1">
+          <label class="mb-1 block text-xs font-bold text-slate-600" for="f-class">Pilih Kelas</label>
+          <select
+            id="f-class"
+            v-model="historyClassFilter"
+            class="w-full rounded-xl border-slate-300 bg-slate-50/80 px-3.5 py-2.5 text-sm font-bold text-slate-700 outline-none ring-1 ring-slate-300 transition focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/20"
+            aria-label="Filter kelas"
+          >
+            <option value="all">Semua Kelas</option>
+            <option v-for="name in historyClassOptions" :key="name" :value="name">
+              {{ name }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Input Search -->
+        <div class="relative min-w-56 flex-1">
+          <label class="mb-1 block text-xs font-bold text-slate-600">Pencarian</label>
+          <Search :size="18" aria-hidden="true" class="pointer-events-none absolute left-3.5 top-[34px] text-slate-400" />
+          <input
+            v-model="sessionSearch"
+            type="search"
+            class="w-full rounded-xl border-slate-300 bg-slate-50/80 pl-10 pr-4 py-2 text-sm font-medium text-slate-800 placeholder-slate-400 outline-none ring-1 ring-slate-300 transition focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/20"
+            placeholder="Cari kelas atau materi..."
+            aria-label="Cari riwayat"
           />
         </div>
 
-        <div class="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2">
+        <!-- Filter Rentang Tanggal -->
+        <div role="group" aria-label="Filter tanggal riwayat" class="grid w-full grid-cols-2 gap-3 sm:w-auto">
           <div>
-            <label class="label" for="s-points">Poin per Jawaban Benar</label>
-            <input id="s-points" v-model.number="settingsForm.pointsPerCorrect" type="number" min="1" max="100" class="input" />
-          </div>
-
-          <div>
-            <label class="label" for="s-count">Jumlah Soal per Kuis</label>
-            <input id="s-count" v-model.number="settingsForm.questionCountPerQuiz" type="number" min="0" max="100" class="input" />
-            <p class="mt-1.5 text-sm text-slate-400">Isi 0 untuk memakai semua soal pada materi tersebut.</p>
-          </div>
-
-          <div class="sm:col-span-2">
-            <label class="label" for="s-time">Waktu Menjawab per Soal (detik)</label>
-            <input id="s-time" v-model.number="settingsForm.answerTimeLimit" type="number" min="0" max="300" class="input" />
-            <p class="mt-1.5 text-sm text-slate-400">Isi 0 untuk tanpa batas waktu.</p>
-          </div>
-        </div>
-
-        <div class="mt-5 space-y-3">
-          <label class="flex cursor-pointer items-center gap-3 rounded-2xl bg-slate-50 p-4">
-            <input v-model="settingsForm.shuffleQuestions" type="checkbox" class="h-5 w-5 rounded text-brand-600" />
-            <span class="font-bold text-slate-700">Acak urutan soal</span>
-          </label>
-
-          <label class="flex cursor-pointer items-center gap-3 rounded-2xl bg-slate-50 p-4">
-            <input v-model="settingsForm.shuffleOptions" type="checkbox" class="h-5 w-5 rounded text-brand-600" />
-            <span class="font-bold text-slate-700">Acak urutan pilihan jawaban</span>
-          </label>
-        </div>
-      </div>
-
-      <div class="card">
-        <h3 class="text-lg font-extrabold text-slate-900">Efek Suara</h3>
-
-        <div class="mt-5 space-y-4">
-          <label class="flex cursor-pointer items-center gap-3">
-            <input v-model="settingsForm.soundEnabled" type="checkbox" class="h-5 w-5 rounded text-brand-600" />
-            <span class="font-bold text-slate-700">Aktifkan efek suara</span>
-          </label>
-
-          <div>
-            <label class="label" for="s-volume">Volume Suara ({{ settingsForm.soundVolume }}%)</label>
+            <label class="mb-1 block text-xs font-bold text-slate-600" for="f-from">Dari tanggal</label>
             <input
-              id="s-volume"
-              v-model.number="settingsForm.soundVolume"
-              type="range"
-              min="0"
-              max="100"
-              step="5"
-              class="h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-brand-600"
-              :disabled="!settingsForm.soundEnabled"
+              id="f-from"
+              v-model="historyDateFrom"
+              type="date"
+              class="w-full rounded-xl border-slate-300 bg-slate-50/80 px-3 py-2 text-xs sm:text-sm font-semibold text-slate-700 outline-none ring-1 ring-slate-300 transition focus:border-indigo-500 focus:bg-white"
             />
           </div>
-
+          <div>
+            <label class="mb-1 block text-xs font-bold text-slate-600" for="f-to">Sampai tanggal</label>
+            <input
+              id="f-to"
+              v-model="historyDateTo"
+              type="date"
+              class="w-full rounded-xl border-slate-300 bg-slate-50/80 px-3 py-2 text-xs sm:text-sm font-semibold text-slate-700 outline-none ring-1 ring-slate-300 transition focus:border-indigo-500 focus:bg-white"
+            />
+          </div>
           <button
+            v-if="historyDateFrom || historyDateTo"
             type="button"
-            class="btn-neutral w-full py-2.5 text-base sm:w-auto"
-            :disabled="!settingsForm.soundEnabled"
-            @click="handleTestSound"
+            class="col-span-2 inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-100 py-2 px-3 text-xs font-bold text-slate-700 transition hover:bg-slate-200 active:scale-95"
+            @click="clearHistoryDate"
           >
-            <Volume2 :size="18" aria-hidden="true" /> Tes Suara
+            <X :size="16" aria-hidden="true" />
+            Bersihkan Filter
           </button>
         </div>
       </div>
 
-      <div class="card">
-        <h3 class="text-lg font-extrabold text-slate-900">Musik Latar</h3>
+      <div class="mt-5 border-t border-slate-200/80"></div>
 
-        <div class="mt-5 space-y-4">
-          <label class="flex cursor-pointer items-center gap-3">
-            <input v-model="settingsForm.musicEnabled" type="checkbox" class="h-5 w-5 rounded text-brand-600" />
-            <span class="font-bold text-slate-700">Aktifkan musik latar</span>
-          </label>
+      <!-- Empty State Hasil Filter -->
+      <div v-if="filteredSessions.length === 0" class="py-12 text-center">
+        <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-2xl">
+          🔍
+        </div>
+        <p class="mt-3 text-base font-bold text-slate-800">Tidak Ada Riwayat Cocok</p>
+        <p class="mt-1 text-sm font-medium text-slate-500">Belum ada game tersimpan untuk filter pencarian ini.</p>
+      </div>
 
-          <div>
-            <label class="label" for="s-music-volume">Volume Musik ({{ settingsForm.musicVolume }}%)</label>
-            <input
-              id="s-music-volume"
-              v-model.number="settingsForm.musicVolume"
-              type="range"
-              min="0"
-              max="100"
-              step="5"
-              class="h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-brand-600"
-              :disabled="!settingsForm.musicEnabled"
-            />
-          </div>
-
+      <!-- List Riwayat Game -->
+      <ul v-else class="mt-5 space-y-3.5">
+        <li
+          v-for="session in filteredSessions"
+          :key="session.id"
+          class="rounded-2xl bg-slate-50/90 p-4 ring-1 ring-slate-200/80 shadow-xs transition hover:bg-white hover:shadow-md hover:ring-indigo-300 sm:p-5"
+        >
           <button
             type="button"
-            class="btn-neutral w-full py-2.5 text-base sm:w-auto"
-            :disabled="!settingsForm.musicEnabled"
-            @click="toggleMusicPreview"
+            class="flex w-full flex-wrap items-center justify-between gap-3 text-left"
+            @click="toggleSessionDetail(session)"
           >
-            <Music :size="18" aria-hidden="true" />
-            {{ isMusicPlaying ? 'Hentikan Pratinjau' : 'Pratinjau Musik' }}
+            <span class="min-w-0 flex-1">
+              <span class="block truncate text-base font-black text-slate-900 sm:text-lg">
+                {{ session.class_name }} · {{ session.subject_label }}
+              </span>
+              <span class="mt-1 block text-xs font-bold text-slate-500 sm:text-sm">
+                🗓 {{ formatPlayedAt(session.played_at) }} &bull; 📝 {{ session.question_count }} Soal
+              </span>
+            </span>
+            <span
+              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 transition group-hover:bg-indigo-600 group-hover:text-white"
+              :aria-label="expandedSessionId === session.id ? 'Tutup rincian' : 'Lihat rincian'"
+            >
+              <component
+                :is="expandedSessionId === session.id ? ChevronUp : ChevronDown"
+                :size="20"
+                aria-hidden="true"
+              />
+            </span>
           </button>
-        </div>
+
+          <!-- Detail Skor Per Sesi -->
+          <div v-if="expandedSessionId === session.id" class="mt-4 border-t border-slate-200/80 pt-4">
+            <div v-if="isLoadingSessionScores" class="py-4 text-center text-sm font-semibold text-slate-500">
+              Memuat peringkat...
+            </div>
+            <div v-else-if="(sessionScoresCache[session.id] ?? []).length === 0" class="py-4 text-center text-sm font-medium text-slate-500">
+              Tidak ada skor tersimpan untuk sesi ini.
+            </div>
+            <ul v-else class="space-y-2">
+              <li
+                v-for="(row, index) in sessionScoresCache[session.id]"
+                :key="row.id"
+                class="flex items-center gap-3 rounded-xl bg-white p-3 ring-1 ring-slate-200/60 shadow-xs"
+              >
+                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 font-black text-slate-600 text-xs sm:text-sm">
+                  {{ index + 1 }}
+                </span>
+                <span class="min-w-0 flex-1 truncate text-sm font-bold text-slate-800 sm:text-base">
+                  {{ row.student_name }}
+                </span>
+                <span class="shrink-0 text-sm font-extrabold tabular-nums text-slate-900 sm:text-base">
+                  {{ row.score }} <span class="text-xs font-bold text-slate-500">Poin</span>
+                </span>
+              </li>
+            </ul>
+
+            <div class="mt-4 flex justify-end">
+              <button
+                type="button"
+                class="inline-flex items-center gap-2 rounded-xl bg-red-50 px-3.5 py-2 text-xs font-bold text-red-600 transition hover:bg-red-600 hover:text-white active:scale-95 sm:text-sm"
+                @click="handleDeleteSession(session)"
+              >
+                <Trash2 :size="16" aria-hidden="true" />
+                Hapus Riwayat Ini
+              </button>
+            </div>
+          </div>
+        </li>
+      </ul>
+    </template>
+  </div>
+</section>
+
+    <!-- ============================ PENGATURAN ============================ -->
+<section v-else class="mt-6 space-y-6 animate-fade-in">
+  <!-- Card: Pengaturan Aturan Kuis -->
+  <div class="rounded-3xl bg-white p-6 shadow-lg shadow-slate-200/50 ring-1 ring-slate-200/80 sm:p-7">
+    <div class="flex items-center gap-3 border-b border-slate-100 pb-4">
+      <h2 class="text-xl font-extrabold tracking-tight text-slate-900 sm:text-2xl">Pengaturan Kuis</h2>
+      <InfoButton
+        label="Info Pengaturan Kuis"
+        @open="showInfo('Pengaturan Kuis', 'Atur aturan permainan. Pengaturan ini tersimpan di browser ini.')"
+      />
+    </div>
+
+    <div class="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2">
+      <div>
+        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-600" for="s-points">
+          Poin per Jawaban Benar
+        </label>
+        <input
+          id="s-points"
+          v-model.number="settingsForm.pointsPerCorrect"
+          type="number"
+          min="1"
+          max="100"
+          class="w-full rounded-xl border-slate-300 bg-slate-50/80 px-4 py-2.5 text-base font-extrabold text-slate-800 outline-none ring-1 ring-slate-300/80 transition focus:border-brand-500 focus:bg-white focus:ring-2 focus:ring-brand-500/20"
+        />
       </div>
 
-      <div class="card">
-        <div class="flex flex-col gap-3 sm:flex-row">
-          <button type="button" class="btn-primary" @click="handleSaveSettings">Simpan Pengaturan</button>
-          <button type="button" class="btn-neutral" @click="handleResetSettings">Kembalikan Bawaan</button>
-        </div>
+      <div>
+        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-600" for="s-count">
+          Jumlah Soal per Kuis
+        </label>
+        <input
+          id="s-count"
+          v-model.number="settingsForm.questionCountPerQuiz"
+          type="number"
+          min="0"
+          max="100"
+          class="w-full rounded-xl border-slate-300 bg-slate-50/80 px-4 py-2.5 text-base font-extrabold text-slate-800 outline-none ring-1 ring-slate-300/80 transition focus:border-brand-500 focus:bg-white focus:ring-2 focus:ring-brand-500/20"
+        />
+        <p class="mt-1.5 text-xs font-semibold text-slate-400">Isi 0 untuk memakai semua soal pada materi tersebut.</p>
       </div>
-    </section>
+
+      <div class="sm:col-span-2">
+        <label class="mb-1.5 block text-xs font-bold uppercase tracking-wider text-slate-600" for="s-time">
+          Waktu Menjawab per Soal (detik)
+        </label>
+        <input
+          id="s-time"
+          v-model.number="settingsForm.answerTimeLimit"
+          type="number"
+          min="0"
+          max="300"
+          class="w-full rounded-xl border-slate-300 bg-slate-50/80 px-4 py-2.5 text-base font-extrabold text-slate-800 outline-none ring-1 ring-slate-300/80 transition focus:border-brand-500 focus:bg-white focus:ring-2 focus:ring-brand-500/20"
+        />
+        <p class="mt-1.5 text-xs font-semibold text-slate-400">Isi 0 untuk tanpa batas waktu.</p>
+      </div>
+    </div>
+
+    <div class="mt-6 space-y-3">
+      <label class="flex cursor-pointer items-center gap-3.5 rounded-2xl bg-slate-50/80 p-4 ring-1 ring-slate-200/60 transition hover:bg-slate-100/80">
+        <input
+          v-model="settingsForm.shuffleQuestions"
+          type="checkbox"
+          class="h-5 w-5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+        />
+        <span class="text-sm font-bold text-slate-800">Acak urutan soal</span>
+      </label>
+
+      <label class="flex cursor-pointer items-center gap-3.5 rounded-2xl bg-slate-50/80 p-4 ring-1 ring-slate-200/60 transition hover:bg-slate-100/80">
+        <input
+          v-model="settingsForm.shuffleOptions"
+          type="checkbox"
+          class="h-5 w-5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+        />
+        <span class="text-sm font-bold text-slate-800">Acak urutan pilihan jawaban</span>
+      </label>
+    </div>
+  </div>
+
+  <!-- Card: Efek Suara -->
+  <div class="rounded-3xl bg-white p-6 shadow-lg shadow-slate-200/50 ring-1 ring-slate-200/80 sm:p-7">
+    <div class="flex items-center gap-3 border-b border-slate-100 pb-4">
+      <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+        <Volume2 :size="20" aria-hidden="true" />
+      </div>
+      <h3 class="text-lg font-extrabold text-slate-900 sm:text-xl">Efek Suara</h3>
+    </div>
+
+    <div class="mt-5 space-y-5">
+      <label class="flex cursor-pointer items-center gap-3.5">
+        <input
+          v-model="settingsForm.soundEnabled"
+          type="checkbox"
+          class="h-5 w-5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+        />
+        <span class="text-sm font-bold text-slate-800">Aktifkan efek suara</span>
+      </label>
+
+      <div>
+        <div class="mb-2 flex items-center justify-between">
+          <label class="text-xs font-bold uppercase tracking-wider text-slate-600" for="s-volume">Volume Suara</label>
+          <span class="text-xs font-black text-brand-600">{{ settingsForm.soundVolume }}%</span>
+        </div>
+        <input
+          id="s-volume"
+          v-model.number="settingsForm.soundVolume"
+          type="range"
+          min="0"
+          max="100"
+          step="5"
+          class="h-2.5 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-brand-600 disabled:opacity-40"
+          :disabled="!settingsForm.soundEnabled"
+        />
+      </div>
+
+      <button
+        type="button"
+        class="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-100 px-5 py-2.5 text-sm font-bold text-slate-700 ring-1 ring-slate-200/80 transition hover:bg-slate-200 active:scale-95 disabled:opacity-50 sm:w-auto"
+        :disabled="!settingsForm.soundEnabled"
+        @click="handleTestSound"
+      >
+        <Volume2 :size="18" aria-hidden="true" />
+        Tes Suara
+      </button>
+    </div>
+  </div>
+
+  <!-- Card: Musik Latar -->
+  <div class="rounded-3xl bg-white p-6 shadow-lg shadow-slate-200/50 ring-1 ring-slate-200/80 sm:p-7">
+    <div class="flex items-center gap-3 border-b border-slate-100 pb-4">
+      <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+        <Music :size="20" aria-hidden="true" />
+      </div>
+      <h3 class="text-lg font-extrabold text-slate-900 sm:text-xl">Musik Latar</h3>
+    </div>
+
+    <div class="mt-5 space-y-5">
+      <label class="flex cursor-pointer items-center gap-3.5">
+        <input
+          v-model="settingsForm.musicEnabled"
+          type="checkbox"
+          class="h-5 w-5 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+        />
+        <span class="text-sm font-bold text-slate-800">Aktifkan musik latar</span>
+      </label>
+
+      <div>
+        <div class="mb-2 flex items-center justify-between">
+          <label class="text-xs font-bold uppercase tracking-wider text-slate-600" for="s-music-volume">Volume Musik</label>
+          <span class="text-xs font-black text-brand-600">{{ settingsForm.musicVolume }}%</span>
+        </div>
+        <input
+          id="s-music-volume"
+          v-model.number="settingsForm.musicVolume"
+          type="range"
+          min="0"
+          max="100"
+          step="5"
+          class="h-2.5 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-brand-600 disabled:opacity-40"
+          :disabled="!settingsForm.musicEnabled"
+        />
+      </div>
+
+      <button
+        type="button"
+        class="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-100 px-5 py-2.5 text-sm font-bold text-slate-700 ring-1 ring-slate-200/80 transition hover:bg-slate-200 active:scale-95 disabled:opacity-50 sm:w-auto"
+        :disabled="!settingsForm.musicEnabled"
+        @click="toggleMusicPreview"
+      >
+        <Music :size="18" aria-hidden="true" />
+        {{ isMusicPlaying ? 'Hentikan Pratinjau' : 'Pratinjau Musik' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Card: Action Buttons -->
+  <div class="rounded-3xl bg-white p-6 shadow-lg shadow-slate-200/50 ring-1 ring-slate-200/80 sm:p-7">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <button
+        type="button"
+        class="inline-flex items-center justify-center rounded-xl bg-brand-600 px-6 py-3 text-base font-bold text-white shadow-md shadow-brand-500/20 transition hover:bg-brand-700 active:scale-95"
+        @click="handleSaveSettings"
+      >
+        Simpan Pengaturan
+      </button>
+      <button
+        type="button"
+        class="inline-flex items-center justify-center rounded-xl bg-slate-100 px-6 py-3 text-base font-bold text-slate-700 ring-1 ring-slate-200/80 transition hover:bg-slate-200 active:scale-95"
+        @click="handleResetSettings"
+      >
+        Kembalikan Bawaan
+      </button>
+    </div>
+  </div>
+</section>
 
     <!-- =============================== TOAST =============================== -->
     <Transition
@@ -2473,6 +2825,15 @@ onMounted(async () => {
       :subject="activeSubject"
       @close="showImport = false"
       @imported="onImported"
+    />
+
+    <ImportStudentsModal
+      v-if="showImportStudents"
+      :open="showImportStudents"
+      :classes="classList"
+      :default-class-id="studentClassFilter === 'all' ? '' : studentClassFilter"
+      @close="showImportStudents = false"
+      @imported="onStudentsImported"
     />
 
     <InfoModal

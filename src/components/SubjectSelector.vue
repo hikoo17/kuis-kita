@@ -19,7 +19,7 @@ function emojiFor(index) {
 <template>
   <section class="animate-fade-in">
     <!-- Header: tombol Kembali di kiri, judul tetap center. -->
-    <div class="mx-auto flex max-w-3xl items-center gap-3">
+    <div class="mx-auto mt-4 flex max-w-3xl items-center gap-3">
       <button
         type="button"
         class="btn-neutral shrink-0 !px-3.5 !py-2 !text-base shadow-card !ring-0 hover:bg-slate-100 hover:shadow-card-hover"
@@ -31,8 +31,8 @@ function emojiFor(index) {
       </button>
 
       <div class="min-w-0 flex-1 text-center">
-        <h2 class="text-2xl font-extrabold text-slate-900 sm:text-4xl">Pilih Materi</h2>
-        <p class="mt-1 text-base text-slate-500 sm:text-lg">Materi mana yang mau kita kerjakan?</p>
+        <h2 class="text-3xl font-extrabold text-slate-900 sm:text-4xl">Pilih Materi</h2>
+        <p class="mt-2 text-lg text-slate-500">Materi mana yang mau kita kerjakan?</p>
       </div>
 
       <!-- Penyeimbang lebar tombol agar judul benar-benar center di layar lebar. -->
@@ -58,7 +58,7 @@ function emojiFor(index) {
       <RouterLink to="/admin" class="btn-primary mt-6">Buka Dashboard Guru</RouterLink>
     </div>
 
-    <div v-else class="mx-auto mt-6 grid max-w-3xl grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div v-else class="mx-auto mt-8 grid max-w-3xl grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <button
         v-for="(subject, index) in subjects"
         :key="subject"

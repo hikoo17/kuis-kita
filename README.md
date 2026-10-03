@@ -42,6 +42,10 @@ sedangkan kode, nama variabel, nama komponen, dan kolom database tetap Bahasa In
   — Edit, Reset, dan Hapus berupa tombol ikon dengan tooltip Bahasa Indonesia.
 - **Banyak kelas, satu guru** — siswa dikelompokkan per kelas (`X-1`, `XI IPA 2`, ...),
   kuis dan papan skor berjalan per kelas. Bank soal dipakai bareng semua kelas.
+- **Import siswa dari CSV/Excel** — tambah satu kelas sekaligus dengan mengunggah file `.csv`/`.xlsx`
+  atau menempel daftar nama langsung dari Excel. Tombol **Unduh Template CSV** menyediakan
+  file contoh (`Nama;Kelas`) yang tinggal diisi lalu diunggah kembali. Nama ganda otomatis dilewati, kolom kelas pada file
+  (jika ada) ikut dibaca, dan siswa tanpa kelas masuk ke kelas tujuan yang dipilih.
 - **Arsip otomatis** — hasil game tersimpan sendiri ke Riwayat begitu kuis selesai
   (lihat poin di atas), lalu poin kelas dinol-kan untuk game berikutnya.
 
@@ -140,7 +144,8 @@ src/
 │   ├── SubjectSelector.vue     # kartu pilih materi
 │   ├── QuestionCard.vue        # wadah teks soal + gambar soal
 │   ├── MathText.vue            # render rumus LaTeX (KaTeX) + matriks
-│   ├── ImportQuestionsModal.vue# wizard impor soal dari .docx
+│   ├── ImportQuestionsModal.vue # wizard impor soal dari .docx
+│   ├── ImportStudentsModal.vue # wizard impor siswa dari CSV/Excel
 │   ├── MultipleChoice.vue      # tombol pilihan A, B, C, D, ... (bisa lebih dari 4)
 │   ├── ShortAnswer.vue         # input jawaban singkat
 │   ├── AnswerFeedback.vue      # overlay Benar! / Belum Tepat!
@@ -173,7 +178,9 @@ src/
 │   ├── mathText.js             # pecah teks + rumus/matriks untuk dirender
 │   ├── omml.js                 # rumus Word (OMML) → LaTeX
 │   ├── docxImport.js           # baca isi file .docx di browser
+│   ├── xlsxImport.js           # baca sheet pertama file .xlsx di browser
 │   ├── parseQuestions.js       # susun soal dari isi dokumen
+│   ├── parseStudents.js        # susun daftar siswa dari CSV/tempelan
 │   └── supabaseClient.js
 ├── router/
 │   └── index.js

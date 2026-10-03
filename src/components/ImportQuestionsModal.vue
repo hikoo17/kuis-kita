@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { FileUp, ImagePlus, Trash2, X } from '@lucide/vue'
+import { FileText, FileUp, ImagePlus, Sparkles, Trash2, X } from '@lucide/vue'
 import MathText from '@/components/MathText.vue'
 import { extractDocxBlocks } from '@/lib/docxImport'
 import { parseQuestions } from '@/lib/parseQuestions'
@@ -34,7 +34,6 @@ useModalFocus(
 
 const selectedCount = computed(() => items.value.filter((item) => item.selected).length)
 
-// Reset tiap kali modal dibuka.
 watch(
   () => props.open,
   (open) => {
@@ -91,7 +90,6 @@ function removeItem(index) {
   })
 }
 
-/** Hapus satu pilihan di pratinjau (sisakan minimal 2, seperti form soal). */
 function removePreviewOption(index, label) {
   const item = items.value[index]
   if (!item || item.options.length <= 2) return
@@ -111,8 +109,6 @@ function isImportable(item) {
   return true
 }
 
-// Gambar tiap pilihan di pratinjau: satu input berkas dipakai bersama,
-// berkas diunggah saat import dijalankan.
 const optionImageInput = ref(null)
 const pendingImageTarget = ref({ index: -1, label: '' })
 
@@ -154,10 +150,6 @@ function removeOptionImage(index, label) {
   option.previewUrl = ''
 }
 
-/**
- * Saat diubah jadi isian singkat, kunci berupa huruf pilihan (A-E) tidak lagi
- * bermakna — kosongkan supaya guru mengetik jawaban sebenarnya.
- */
 function onTypeChange(item) {
   if (item.type === 'short_answer' && /^[A-E]$/.test(item.correctAnswer.trim())) {
     item.correctAnswer = ''
@@ -173,7 +165,6 @@ async function runImport() {
   const uploadedThisRun = []
   try {
     for (const item of queue) {
-      // Unggah gambar pilihan sebelum soal disimpan.
       if (item.type === 'multiple_choice') {
         for (const option of item.options) {
           if (option.imageFile) {
@@ -201,7 +192,6 @@ async function runImport() {
     emit('imported', imported)
     emit('close')
   } catch (err) {
-    // Bersihkan gambar yang sempat terunggah supaya tidak yatim.
     uploadedThisRun.forEach((url) => deleteQuestionImage(url))
     parseError.value = err.message || 'Sebagian soal gagal disimpan. Coba lagi.'
   } finally {
@@ -214,14 +204,14 @@ async function runImport() {
   <Teleport to="body">
     <Transition
       enter-active-class="transition duration-200 ease-out"
-      enter-from-class="opacity-0"
+      enter-from-class="opacity-0 scale-95"
       leave-active-class="transition duration-150 ease-in"
-      leave-to-class="opacity-0"
+      leave-to-class="opacity-0 scale-95"
     >
       <div
         v-if="open"
-        class="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
-        @click.self="emit('close')"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-md"
+        @click.self="!isImporting && emit('close')"
       >
         <div
           ref="dialogRef"
@@ -229,45 +219,53 @@ async function runImport() {
           aria-modal="true"
           aria-labelledby="import-title"
           tabindex="-1"
-          class="flex max-h-[92vh] w-full max-w-3xl flex-col rounded-t-3xl bg-slate-50 shadow-card-hover focus:outline-none sm:rounded-3xl"
+          class="flex max-h-[90vh] w-full max-w-4xl flex-col rounded-3xl bg-white shadow-2xl ring-1 ring-slate-900/5 focus:outline-none"
         >
-          <!-- Kepala -->
-          <div class="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4 sm:rounded-t-3xl">
-            <div class="min-w-0">
-              <h2 id="import-title" class="text-lg font-extrabold text-slate-900 sm:text-xl">Import Soal dari Word</h2>
-              <p class="mt-0.5 truncate text-sm text-slate-500">
-                Materi: <span class="font-bold text-brand-700">{{ subject }}</span>
-              </p>
+          <!-- Header Minimalis -->
+          <div class="flex items-center justify-between border-b border-slate-100 px-7 py-5">
+            <div class="flex items-center gap-4 min-w-0">
+              <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+                <FileText :size="24" />
+              </div>
+              <div class="min-w-0">
+                <h2 id="import-title" class="text-lg font-bold text-slate-900">Import Soal Word</h2>
+                <p class="truncate text-sm font-semibold text-slate-500">
+                  Materi: <span class="text-slate-800">{{ subject || 'Umum' }}</span>
+                </p>
+              </div>
             </div>
             <button
               type="button"
-              class="icon-btn-neutral"
+              class="rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
               aria-label="Tutup"
+              :disabled="isImporting"
               @click="emit('close')"
             >
-              <X :size="18" aria-hidden="true" />
+              <X :size="20" />
             </button>
           </div>
 
-          <!-- Isi -->
-          <div class="flex-1 overflow-y-auto px-5 py-5">
-            <!-- Langkah 1: pilih berkas -->
+          <!-- Body Container -->
+          <div class="flex-1 overflow-y-auto p-7 space-y-6">
+            <!-- Dropzone Area Minimalis -->
             <div
-              class="rounded-2xl border-2 border-dashed p-5 text-center"
-              :class="fileName ? 'border-brand-200 bg-white' : 'border-slate-300 bg-white'"
+              class="group relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50 px-6 py-8 text-center transition hover:border-slate-300 hover:bg-slate-50"
+              :class="{ 'pointer-events-none opacity-60': isParsing }"
             >
-              <span class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-500">
-                <FileUp :size="24" aria-hidden="true" />
-              </span>
-              <p class="mt-3 font-extrabold text-slate-800">
+              <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 shadow-sm ring-1 ring-blue-600/10 transition group-hover:scale-110">
+                <FileText :size="28" />
+              </div>
+
+              <p class="mt-4 text-base font-bold text-slate-800">
                 {{ fileName ? fileName : 'Pilih file Word (.docx)' }}
               </p>
-              <p class="mt-1 text-sm text-slate-400">
-                Setiap soal cukup diberi nomor, pilihan jawaban A, B, C, …, dan kunci jawaban.
+              <p class="mt-1 text-sm font-medium text-slate-500">
+                Format yang didukung: Berkas Microsoft Word (.docx)
               </p>
-              <label class="btn-primary mt-3 w-full !py-2.5 sm:w-auto" :class="{ 'pointer-events-none opacity-60': isParsing }">
-                <FileUp :size="18" aria-hidden="true" />
-                {{ isParsing ? 'Membaca...' : 'Pilih File Word' }}
+
+              <label class="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-blue-600/20 transition hover:bg-blue-700 active:scale-95">
+                <FileUp :size="18" />
+                <span>{{ isParsing ? 'Membaca File...' : 'Pilih Berkas Word' }}</span>
                 <input
                   ref="fileInput"
                   type="file"
@@ -279,175 +277,209 @@ async function runImport() {
               </label>
             </div>
 
-            <p v-if="parseError" class="mt-4 rounded-2xl bg-red-50 px-4 py-3 font-semibold text-red-600">
+            <!-- Pesan Error -->
+            <div v-if="parseError" class="rounded-xl bg-red-50 p-4 text-sm font-semibold text-red-600">
               {{ parseError }}
-            </p>
+            </div>
 
-            <!-- Langkah 2: pratinjau -->
-            <div v-if="items.length > 0" class="mt-5">
-              <p class="text-sm font-bold text-slate-500">
-                Periksa hasil — {{ selectedCount }} dari {{ items.length }} soal dipilih
-              </p>
+            <!-- List Pratinjau Soal -->
+            <div v-if="items.length > 0" class="space-y-4 pt-2">
+              <div class="flex items-center justify-between px-1">
+                <span class="text-sm font-extrabold tracking-wide text-slate-500 uppercase">
+                  Pratinjau Soal ({{ selectedCount }}/{{ items.length }} dipilih)
+                </span>
+              </div>
 
-              <ul class="mt-3 space-y-4">
-                <li
+              <div class="space-y-4">
+                <div
                   v-for="(item, index) in items"
                   :key="index"
-                  class="rounded-2xl bg-white p-4 ring-1"
-                  :class="item.selected ? 'ring-brand-200' : 'ring-slate-200 opacity-70'"
+                  class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition"
+                  :class="item.selected ? 'ring-2 ring-purple-500/10 border-slate-300' : 'opacity-50 bg-slate-50/50'"
                 >
-                  <div class="flex items-start gap-3">
+                  <div class="flex items-start gap-4">
                     <input
                       v-model="item.selected"
                       type="checkbox"
-                      class="mt-1 h-5 w-5 shrink-0 rounded text-brand-600"
-                      :aria-label="`Sertakan soal ${index + 1}`"
+                      class="mt-1.5 h-5 w-5 rounded border-slate-300 text-purple-600 focus:ring-purple-500"
                     />
-                    <div class="min-w-0 flex-1">
-                      <div class="flex flex-wrap items-center gap-2">
-                        <span class="chip bg-slate-200 text-slate-600">Soal {{ index + 1 }}</span>
+
+                    <div class="min-w-0 flex-1 space-y-4">
+                      <!-- Baris Atas: Badges & Tipe Soal -->
+                      <div class="flex flex-wrap items-center gap-3">
+                        <span class="rounded-xl bg-slate-100 px-3 py-1.5 text-sm font-extrabold text-slate-800">
+                          Soal Nomor {{ index + 1 }}
+                        </span>
+
                         <select
                           v-model="item.type"
-                          class="input w-auto !px-2.5 !py-1 !text-sm"
-                          :aria-label="`Jenis soal ${index + 1}`"
+                          class="rounded-xl border border-slate-300 bg-slate-50 px-3 py-1.5 text-sm font-bold text-slate-800 focus:border-purple-500 focus:bg-white focus:outline-none"
                           @change="onTypeChange(item)"
                         >
                           <option value="multiple_choice">Pilihan Ganda</option>
                           <option value="short_answer">Isian Singkat</option>
                         </select>
+
                         <span
-                          class="chip"
-                          :class="isImportable(item) ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'"
+                          class="rounded-xl px-3 py-1.5 text-sm font-bold"
+                          :class="isImportable(item) ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'"
                         >
-                          {{ isImportable(item) ? `Kunci: ${item.correctAnswer}` : 'Perlu dilengkapi' }}
+                          {{ isImportable(item) ? `Kunci Jawaban: ${item.correctAnswer}` : 'Perlu Dilengkapi' }}
                         </span>
                       </div>
 
-                      <textarea
-                        v-model="item.text"
-                        rows="2"
-                        class="input mt-2 min-h-[3.5rem] !text-base"
-                        aria-label="Teks soal"
-                      />
-                      <div class="rounded-xl bg-slate-50 px-3 py-2 text-slate-700">
-                        <MathText :text="item.text" />
+                      <!-- Input Teks Soal (Ukuran Teks Lebih Besar) -->
+                      <div class="space-y-2">
+                        <textarea
+                          v-model="item.text"
+                          rows="3"
+                          class="w-full rounded-2xl border border-slate-300 bg-slate-50/50 p-4 text-base font-medium leading-relaxed text-slate-800 placeholder:text-slate-400 focus:border-purple-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/20"
+                          placeholder="Tuliskan pertanyaan..."
+                        />
+                        <!-- Render Tampilan Rumus / MathText -->
+                        <div v-if="item.text" class="rounded-xl bg-blue-50/60 p-3.5 text-base font-medium text-slate-800 border border-blue-100">
+                          <span class="text-xs font-bold uppercase tracking-wider text-blue-600 block mb-1">Tampilan Soal:</span>
+                          <MathText :text="item.text" />
+                        </div>
                       </div>
 
-                      <div v-if="item.type === 'multiple_choice'" class="mt-2 space-y-1.5">
-                        <div v-for="option in item.options" :key="option.label" class="rounded-xl bg-slate-50 p-2">
-                          <div class="flex items-center gap-2">
-                            <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-sm font-extrabold text-brand-700">
-                              {{ option.label }}
-                            </span>
-                            <input
-                              v-model="option.text"
-                              type="text"
-                              class="input min-w-0 flex-1 !py-2 !text-base"
-                              :aria-label="`Pilihan ${option.label}`"
-                            />
-                            <button
-                              type="button"
-                              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-slate-500 ring-1 ring-slate-200 transition hover:bg-brand-50 hover:text-brand-700"
-                              :title="`Gambar untuk pilihan ${option.label}`"
-                              :aria-label="`Gambar untuk pilihan ${option.label}`"
-                              @click="pickOptionImage(index, option.label)"
-                            >
-                              <ImagePlus :size="16" aria-hidden="true" />
-                            </button>
-                            <button
-                              type="button"
-                              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-500 transition hover:bg-red-100 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
-                              :disabled="item.options.length <= 2"
-                              :title="`Hapus pilihan ${option.label}`"
-                              :aria-label="`Hapus pilihan ${option.label}`"
-                              @click="removePreviewOption(index, option.label)"
-                            >
-                              <X :size="16" aria-hidden="true" />
-                            </button>
-                          </div>
-                          <div v-if="optionPreview(option)" class="mt-2 flex items-center gap-2">
+                      <!-- Pilihan Jawaban (Jika Pilihan Ganda) -->
+                      <div v-if="item.type === 'multiple_choice'" class="space-y-2.5 pt-1">
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Pilihan Jawaban:</span>
+                        <div
+                          v-for="option in item.options"
+                          :key="option.label"
+                          class="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/50 p-2.5"
+                        >
+                          <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-sm font-black text-slate-800 shadow-sm border border-slate-200">
+                            {{ option.label }}
+                          </span>
+                          <input
+                            v-model="option.text"
+                            type="text"
+                            class="min-w-0 flex-1 bg-transparent px-2 text-sm font-semibold text-slate-800 focus:outline-none"
+                            placeholder="Teks pilihan jawaban..."
+                          />
+
+                          <!-- Action Option Gambar & Hapus -->
+                          <button
+                            type="button"
+                            class="rounded-lg p-2 text-slate-400 hover:bg-white hover:text-slate-700 transition border border-transparent hover:border-slate-200"
+                            :title="`Tambah gambar pilihan ${option.label}`"
+                            @click="pickOptionImage(index, option.label)"
+                          >
+                            <ImagePlus :size="18" />
+                          </button>
+                          <button
+                            type="button"
+                            class="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 transition disabled:opacity-30"
+                            :disabled="item.options.length <= 2"
+                            :title="`Hapus pilihan ${option.label}`"
+                            @click="removePreviewOption(index, option.label)"
+                          >
+                            <X :size="18" />
+                          </button>
+                        </div>
+
+                        <!-- Preview Gambar Pilihan jika ada -->
+                        <div v-for="option in item.options" :key="`img-${option.label}`">
+                          <div v-if="optionPreview(option)" class="mt-2 flex items-center gap-3 px-1">
                             <img
                               :src="optionPreview(option)"
                               :alt="`Gambar pilihan ${option.label}`"
-                              class="h-12 w-auto rounded-lg object-contain ring-1 ring-slate-200"
+                              class="h-16 w-auto rounded-xl border border-slate-200 object-contain bg-white p-1"
                             />
                             <button
                               type="button"
-                              class="btn-ghost !px-2 !py-1 !text-sm !text-red-600"
+                              class="text-xs font-bold text-red-600 hover:underline"
                               @click="removeOptionImage(index, option.label)"
                             >
-                              Hapus
+                              Hapus Gambar ({{ option.label }})
                             </button>
                           </div>
                         </div>
                       </div>
 
-                      <div class="mt-2 flex flex-wrap items-center gap-2">
-                        <label class="text-sm font-bold text-slate-500" :for="`key-${index}`">Kunci</label>
-                        <select
-                          v-if="item.type === 'multiple_choice'"
-                          :id="`key-${index}`"
-                          v-model="item.correctAnswer"
-                          class="input w-auto !py-2 !text-base"
-                        >
-                          <option value="" disabled>Pilih...</option>
-                          <option v-for="label in optionLabels(item)" :key="label" :value="label">{{ label }}</option>
-                        </select>
-                        <input
-                          v-else
-                          :id="`key-${index}`"
-                          v-model="item.correctAnswer"
-                          type="text"
-                          class="input !py-2 !text-base"
-                          placeholder="Jawaban benar"
-                        />
-                        <label class="ms-auto text-sm font-bold text-slate-500" :for="`time-${index}`">
-                          Waktu <span class="font-normal text-slate-400">(dtk)</span>
-                        </label>
-                        <input
-                          :id="`time-${index}`"
-                          v-model="item.timeLimit"
-                          type="number"
-                          min="0"
-                          max="600"
-                          class="input w-24 !py-2 !text-base"
-                          placeholder="Global"
-                        />
+                      <!-- Setting Kunci & Waktu -->
+                      <div class="flex flex-wrap items-center justify-between gap-4 pt-3 border-t border-slate-100">
+                        <div class="flex items-center gap-3">
+                          <label class="text-sm font-extrabold text-slate-700" :for="`key-${index}`">Kunci Jawaban:</label>
+                          <select
+                            v-if="item.type === 'multiple_choice'"
+                            :id="`key-${index}`"
+                            v-model="item.correctAnswer"
+                            class="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm font-bold text-slate-800 focus:border-purple-500 focus:outline-none"
+                          >
+                            <option value="" disabled>Pilih Kunci...</option>
+                            <option v-for="label in optionLabels(item)" :key="label" :value="label">Pilihan {{ label }}</option>
+                          </select>
+                          <input
+                            v-else
+                            :id="`key-${index}`"
+                            v-model="item.correctAnswer"
+                            type="text"
+                            class="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm font-bold text-slate-800 focus:border-purple-500 focus:outline-none"
+                            placeholder="Tuliskan kunci jawaban..."
+                          />
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                          <label class="text-sm font-extrabold text-slate-700" :for="`time-${index}`">Batas Waktu (detik):</label>
+                          <input
+                            :id="`time-${index}`"
+                            v-model="item.timeLimit"
+                            type="number"
+                            min="0"
+                            max="600"
+                            class="w-24 rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm font-bold text-slate-800 focus:border-purple-500 focus:outline-none"
+                            placeholder="Global"
+                          />
+                        </div>
                       </div>
                     </div>
 
+                    <!-- Tombol Hapus Soal -->
                     <button
                       type="button"
-                      class="icon-btn-danger shrink-0"
-                      :aria-label="`Hapus soal ${index + 1}`"
+                      class="rounded-xl p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 transition"
+                      title="Hapus Soal Ini"
                       @click="removeItem(index)"
                     >
-                      <Trash2 :size="18" aria-hidden="true" />
+                      <Trash2 :size="20" />
                     </button>
                   </div>
-                </li>
-              </ul>
+                </div>
+              </div>
+
+              <!-- Single Hidden File Input for Option Images -->
               <input
                 ref="optionImageInput"
                 type="file"
                 accept="image/*"
                 class="hidden"
-                aria-label="Gambar pilihan jawaban"
                 @change="onOptionImageSelect"
               />
             </div>
           </div>
 
-          <!-- Kaki -->
-          <div class="flex items-center justify-between gap-3 border-t border-slate-200 bg-white px-5 py-4 sm:rounded-b-3xl">
-            <button type="button" class="btn-neutral !px-4 !py-2 !text-base" @click="emit('close')">Batal</button>
+          <!-- Footer Aksi Utama -->
+          <div class="flex items-center justify-end gap-3 border-t border-slate-100 px-7 py-5">
             <button
               type="button"
-              class="btn-primary !px-5 !py-2.5"
+              class="rounded-xl px-5 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-slate-100"
+              :disabled="isImporting"
+              @click="emit('close')"
+            >
+              Batal
+            </button>
+            <button
+              type="button"
+              class="flex items-center gap-2 rounded-xl bg-purple-600 px-6 py-2.5 text-sm font-bold text-white shadow-md shadow-purple-600/20 transition hover:bg-purple-700 active:scale-95 disabled:opacity-50"
               :disabled="selectedCount === 0 || isImporting"
               @click="runImport"
             >
-              {{ isImporting ? 'Menyimpan...' : `Import ${selectedCount} Soal` }}
+              <Sparkles :size="18" v-if="!isImporting" />
+              <span>{{ isImporting ? 'Menyimpan Soal...' : `Import ${selectedCount} Soal` }}</span>
             </button>
           </div>
         </div>

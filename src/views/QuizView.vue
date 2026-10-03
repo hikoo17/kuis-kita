@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { ArrowLeft } from '@lucide/vue'
+import { ArrowLeft, UserCheck, Trophy, Sparkles, HelpCircle, Loader2 } from '@lucide/vue'
 
 import { useQuiz, isAnswering, resolveTimeLimit } from '@/composables/useQuiz'
 import { useStudents } from '@/composables/useStudents'
@@ -63,7 +63,6 @@ const { archiveSession } = useQuizSessions()
 
 /**
  * Only subjects that actually have questions can be played.
- * (A newly created subject starts empty until the teacher adds questions.)
  */
 const playableSubjects = computed(() => {
   const counts = {}
@@ -121,14 +120,8 @@ const {
   stopTimer,
 } = useQuiz()
 
-// Countdown overlay shown before answering.
-// Appears after a subject is picked (game start) and again every time
-// a student is picked to answer.
 const showCountdown = ref(false)
-
-// The option the student clicked, before pressing "KIRIM JAWABAN".
 const pendingAnswer = ref('')
-// Loading state of the quiz questions themselves.
 const isLoadingQuiz = ref(false)
 const shortAnswerRef = ref(null)
 
@@ -148,12 +141,10 @@ const progressBarPercent = computed(() => {
 const isMultipleChoice = computed(() => currentQuestion.value?.type === 'multiple_choice')
 const isRevealed = computed(() => ['correct', 'wrong', 'timeout'].includes(answerStatus.value))
 
-/** Batas waktu efektif soal ini (0/null = tanpa batas → chip disembunyikan). */
 const effectiveTimeLimit = computed(() =>
   resolveTimeLimit(currentQuestion.value?.time_limit, settings.value.answerTimeLimit),
 )
 
-// Clear the pending choice whenever a question is reset or a new one starts.
 watch([() => currentQuestion.value?.id, answerStatus], () => {
   if (answerStatus.value === 'idle') pendingAnswer.value = ''
 })
@@ -164,7 +155,6 @@ async function onSelectSubject(subject) {
   await selectSubject(subject)
   isLoadingQuiz.value = false
   if (totalQuestions.value > 0) {
-    // Game start: count down right after the subject is picked.
     showCountdown.value = true
   }
 }
@@ -177,29 +167,24 @@ function onSelectClass(schoolClass) {
 function onSelectStudent(student) {
   play('select')
   selectStudent(student)
-  // Tampilkan hitung mundur lagi setiap kali siswa dipilih.
   showCountdown.value = true
 }
 
 function onCountdownDone() {
   showCountdown.value = false
   if (!selectedStudent.value) {
-    // Subject countdown done: game started, waiting for the first pick.
-    // No music, no timer yet — nobody is answering.
     stopTimer()
     return
   }
   startTimer()
 }
 
-/** Timeout overlay -> same question, another student may try it. */
 function onTimeoutChangeStudent() {
   onRetry()
 }
 
 function onSelectOption(label) {
   if (answerStatus.value !== 'idle' || isSubmitting.value) return
-  // Belum pilih siswa: beri tahu lewat modal, bukan mengabaikan klik.
   if (!selectedStudent.value) {
     showInfo(
       'Pilih Siswa Dulu',
@@ -221,7 +206,6 @@ async function onSubmitShortAnswer(value) {
 }
 
 function onRetry() {
-  // Same question, but a student must be picked again to answer it.
   pendingAnswer.value = ''
   shortAnswerRef.value?.reset()
   tryAgain()
@@ -236,8 +220,6 @@ function onNext() {
   play('next')
 }
 
-// Hasil akhir (snapshot) + arsip otomatis saat kuis selesai.
-// Snapshot diambil SEBELUM skor kelas dinol-kan supaya papan hasil tetap benar.
 const finishedResults = ref([])
 const isFinishing = ref(false)
 const hasArchived = ref(false)
@@ -254,17 +236,10 @@ function captureFinishedResults() {
   })
 }
 
-/**
- * Arsipkan sesi yang benar-benar selesai, lalu nol-kan skor kelas untuk game
- * berikutnya. Hanya dipanggil saat soal terakhir sudah lewat (stage 'finished'),
- * jadi sesi yang belum selesai tidak pernah tersimpan.
- */
 async function archiveFinishedSession() {
   if (hasArchived.value || isFinishing.value) return
   if (totalQuestions.value === 0) return
 
-  // Kelas tanpa siswa: tidak ada yang perlu diarsipkan. Tandai sudah "beres"
-  // supaya tombol Kembali tidak mencoba menyimpan berulang kali.
   if (finishedResults.value.length === 0) {
     hasArchived.value = true
     return
@@ -293,17 +268,14 @@ async function archiveFinishedSession() {
   }
 }
 
-/** Tombol "Kembali" di layar hasil: pastikan tersimpan, lalu balik ke awal. */
 async function onFinishBack() {
   if (!hasArchived.value) {
     await archiveFinishedSession()
-    // Kalau arsip gagal, tetap di layar hasil supaya guru bisa coba lagi.
     if (!hasArchived.value) return
   }
   closeFinished()
 }
 
-/** Balik ke pemilihan kelas. */
 function closeFinished() {
   pendingAnswer.value = ''
   showCountdown.value = false
@@ -314,10 +286,7 @@ function closeFinished() {
   play('click')
 }
 
-/** Back to subject selection (e.g. the wrong subject was picked). */
 async function onBackToSubject() {
-  // Keluar di tengah kuis = game hangus: poin yang sudah diperoleh di game
-  // ini direset dan tidak masuk Riwayat. Hanya kuis yang selesai yang tersimpan.
   const classId = selectedClass.value?.id ?? null
   if (classId) {
     try {
@@ -335,10 +304,7 @@ async function onBackToSubject() {
   play('click')
 }
 
-// Keluar di tengah kuis membuang game yang belum selesai, jadi minta konfirmasi dulu.
 const { confirmState, askConfirm, runConfirm, cancelConfirm } = useConfirm()
-
-// Modal info ringan (mis. klik jawaban sebelum memilih siswa).
 const infoModal = reactive({ open: false, title: '', message: '' })
 
 function showInfo(title, message) {
@@ -366,7 +332,6 @@ function requestBackToSubject() {
   )
 }
 
-// Pintasan papan tombol untuk tampilan proyektor.
 function onQuizKeydown(event) {
   if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return
   if (confirmState.open) return
@@ -378,7 +343,6 @@ function onQuizKeydown(event) {
 
   const key = event.key
 
-  // Pilih item ke-1..9 dari sebuah daftar.
   const pickByNumber = (list, handler) => {
     const index = Number(key) - 1
     if (Number.isInteger(index) && index >= 0 && index < Math.min(list.length, 9)) {
@@ -401,13 +365,11 @@ function onQuizKeydown(event) {
 
   if (stage.value !== 'quiz' || showCountdown.value) return
 
-  // Belum ada yang menjawab: pilih siswa dengan angka 1..9.
   if (!selectedStudent.value) {
     pickByNumber(classStudents.value, onSelectStudent)
     return
   }
 
-  // Umpan balik tampil: Enter / Spasi / panah kanan untuk lanjut.
   if (showFeedback.value) {
     if (key === 'Enter' || key === ' ' || key === 'ArrowRight') {
       event.preventDefault()
@@ -416,18 +378,12 @@ function onQuizKeydown(event) {
     return
   }
 
-  // Pilihan ganda: jawaban hanya dipilih lewat klik/tap.
-  // Pintasan papan tombol sengaja tidak ada (baik huruf A-D maupun angka 1-4),
-  // supaya tidak bentrok saat pilihan jawaban lebih dari 4.
-
-  // Enter: kirim jawaban yang sudah dipilih (pilihan ganda).
   if (key === 'Enter' && isMultipleChoice.value && pendingAnswer.value) {
     event.preventDefault()
     onSubmitOption()
   }
 }
 
-/** Back to class selection (e.g. the wrong class was picked). */
 function onBackToClass() {
   pendingAnswer.value = ''
   restart()
@@ -435,11 +391,6 @@ function onBackToClass() {
   play('click')
 }
 
-// Musik latar mengikuti fase permainan:
-// - setelah materi dipilih (kelas berpikir) → track "menu"
-// - saat hitung mundur muncul          → senyap dulu
-// - saat sesi menjawab berlangsung      → track "game"
-// - saat menampilkan umpan balik        → senyap
 function musicMode() {
   if (stage.value !== 'quiz' || showCountdown.value) return null
   if (!selectedStudent.value) return 'menu'
@@ -463,9 +414,7 @@ watch(
 watch(stage, (value) => {
   if (value === 'finished') {
     play('finish')
-    // Jump to the top so the finish animation is visible right away.
     window.scrollTo({ top: 0, behavior: 'auto' })
-    // Sesi benar-benar selesai: ambil hasil lalu arsipkan otomatis.
     captureFinishedResults()
     archiveFinishedSession()
   }
@@ -487,105 +436,109 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-50">
+  <div class="min-h-screen bg-slate-50 font-sans text-slate-800 antialiased">
     <!-- ============================== HEADER ============================== -->
     <header
       v-if="stage === 'quiz'"
-      class="z-20 border-b border-slate-200 bg-white shadow-card"
+      class="sticky top-0 z-20 border-b border-slate-200/80 bg-white/90 backdrop-blur-md shadow-sm"
     >
-      <div class="mx-auto flex max-w-[1700px] items-center gap-3 px-4 py-2 lg:px-6">
+      <div class="mx-auto flex max-w-[1700px] items-center justify-between gap-4 px-4 py-3 lg:px-6">
         <button
           type="button"
-          class="btn-neutral !px-3.5 !py-2 !text-base !shadow-none !ring-0 hover:bg-slate-100"
+          class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:text-slate-900 active:scale-95 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
           title="Kembali untuk ganti materi"
           @click="requestBackToSubject"
         >
           <ArrowLeft :size="18" aria-hidden="true" />
-          Kembali
+          <span>Kembali</span>
         </button>
 
-        <div class="ms-auto flex items-center gap-3">
-          <p class="whitespace-nowrap text-sm font-extrabold text-slate-700 sm:text-base">
-            Soal {{ currentQuestionNumber }}
-            <span class="font-bold text-slate-400">dari</span> {{ totalQuestions }}
-          </p>
-          <div
-            class="hidden h-2.5 w-36 overflow-hidden rounded-full bg-slate-100 sm:block lg:w-48"
-            role="progressbar"
-            :aria-valuenow="progressBarPercent"
-            aria-valuemin="0"
-            aria-valuemax="100"
-          >
+        <div class="flex items-center gap-4">
+          <div class="flex items-center gap-3">
+            <p class="whitespace-nowrap text-sm font-bold text-slate-700">
+              Soal {{ currentQuestionNumber }}
+              <span class="font-normal text-slate-400">/</span> {{ totalQuestions }}
+            </p>
             <div
-              class="h-full rounded-full bg-gradient-to-r from-brand-500 to-brand-700 transition-all duration-500"
-              :style="{ width: progressBarPercent + '%' }"
-            />
+              class="hidden h-2.5 w-32 overflow-hidden rounded-full bg-slate-100 sm:block lg:w-44"
+              role="progressbar"
+              :aria-valuenow="progressBarPercent"
+              aria-valuemin="0"
+              aria-valuemax="100"
+            >
+              <div
+                class="h-full rounded-full bg-brand-600 transition-all duration-500"
+                :style="{ width: progressBarPercent + '%' }"
+              />
+            </div>
           </div>
-        </div>
 
-        <span
-          v-if="selectedClass"
-          class="shrink-0 rounded-full bg-brand-600 px-3.5 py-1.5 text-sm font-extrabold text-white shadow-card"
-        >
-          {{ selectedClass.name }}
-        </span>
+          <span
+            v-if="selectedClass"
+            class="inline-flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-brand-700 shadow-xs"
+          >
+            {{ selectedClass.name }}
+          </span>
+        </div>
       </div>
     </header>
 
-    <main class="mx-auto max-w-[1700px] px-4 py-4 lg:px-6">
+    <main class="mx-auto max-w-[1700px] px-4 py-6 lg:px-6">
+      <!-- =============================== ERROR =============================== -->
+      <div
+        v-if="quizError || studentsError || questionsError || subjectsError"
+        class="mb-6 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50/80 p-4 text-red-800 shadow-xs"
+      >
+        <span class="text-xl" aria-hidden="true">⚠️</span>
+        <div>
+          <h3 class="text-sm font-bold">Terjadi Kesalahan</h3>
+          <p class="mt-0.5 text-sm font-medium text-red-700">
+            {{ quizError || studentsError || questionsError || subjectsError }}
+          </p>
+        </div>
+      </div>
 
-    <!-- =============================== ERROR =============================== -->
-    <div
-      v-if="quizError || studentsError || questionsError || subjectsError"
-      class="mb-6 rounded-3xl bg-red-50 p-5 text-center ring-1 ring-red-200"
-    >
-      <p class="text-2xl" aria-hidden="true">⚠️</p>
-      <p class="mt-1 text-lg font-semibold text-red-700">
-        {{ quizError || studentsError || questionsError || subjectsError }}
-      </p>
-    </div>
+      <!-- =========================== PILIH KELAS =========================== -->
+      <div
+        v-if="classesNeedMigration"
+        class="mb-6 rounded-2xl border border-amber-200 bg-amber-50/80 p-4 text-amber-800 shadow-xs"
+      >
+        <p class="text-sm font-bold">⚠️ Tabel kelas belum tersedia</p>
+        <p class="mt-1 text-xs font-medium text-amber-700">
+          Jalankan file <code class="rounded bg-amber-100/80 px-1.5 py-0.5 font-mono text-amber-900">supabase/migration_classes.sql</code> di SQL Editor
+          Supabase untuk mengaktifkan kuis per kelas.
+        </p>
+      </div>
 
-    <!-- =========================== PILIH KELAS =========================== -->
-    <div
-      v-if="classesNeedMigration"
-      class="mb-6 rounded-3xl bg-amber-50 p-5 ring-1 ring-amber-200"
-    >
-      <p class="font-extrabold text-amber-700">⚠️ Tabel kelas belum tersedia</p>
-      <p class="mt-1 text-amber-700">
-        Jalankan file <span class="font-bold">supabase/migration_classes.sql</span> di SQL Editor
-        Supabase untuk mengaktifkan kuis per kelas.
-      </p>
-    </div>
-
-    <ClassSelector
-      v-if="stage === 'class'"
-      :classes="classList"
-      :is-loading="isLoadingClasses"
-      :error="classesError"
-      @select="onSelectClass"
-    />
-
-    <!-- =========================== PILIH MATERI =========================== -->
-    <template v-else-if="stage === 'subject'">
-      <SubjectSelector
-        :subjects="playableSubjects"
-        :is-loading="isLoadingQuestions || isLoadingSubjects"
-        :error="questionsError || subjectsError"
-        @select="onSelectSubject"
-        @back="onBackToClass"
+      <ClassSelector
+        v-if="stage === 'class'"
+        :classes="classList"
+        :is-loading="isLoadingClasses"
+        :error="classesError"
+        @select="onSelectClass"
       />
-    </template>
+
+      <!-- =========================== PILIH MATERI =========================== -->
+      <template v-else-if="stage === 'subject'">
+        <SubjectSelector
+          :subjects="playableSubjects"
+          :is-loading="isLoadingQuestions || isLoadingSubjects"
+          :error="questionsError || subjectsError"
+          @select="onSelectSubject"
+          @back="onBackToClass"
+        />
+      </template>
 
       <!-- =============================== SOAL =============================== -->
       <div
         v-else-if="stage === 'quiz'"
-        class="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,7fr)_minmax(0,3fr)]"
+        class="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,7fr)_minmax(0,3fr)]"
       >
         <!-- ====================== KIRI: SOAL & PILIHAN ====================== -->
-        <section class="min-w-0">
-          <div v-if="isLoadingQuiz" class="card text-center">
-            <div class="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-brand-200 border-t-brand-600"></div>
-            <p class="mt-4 text-lg font-semibold text-slate-500">Memuat...</p>
+        <section class="min-w-0 space-y-5">
+          <div v-if="isLoadingQuiz" class="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm">
+            <Loader2 class="mx-auto h-8 w-8 animate-spin text-brand-600" />
+            <p class="mt-3 text-sm font-semibold text-slate-500">Memuat pertanyaan...</p>
           </div>
 
           <QuestionCard
@@ -596,8 +549,6 @@ onBeforeUnmount(() => {
             :time-left="isTimerRunning ? timeLeft : null"
             :time-limit="effectiveTimeLimit > 0 ? effectiveTimeLimit : null"
           >
-            <!-- Pilihan ganda selalu terlihat supaya kelas bisa ikut berpikir.
-                 Klik sebelum memilih siswa menampilkan modal pengingat. -->
             <MultipleChoice
               v-if="isMultipleChoice"
               :key="currentQuestion.id"
@@ -619,40 +570,51 @@ onBeforeUnmount(() => {
               />
             </template>
 
-            <div v-if="isMultipleChoice && selectedStudent && !isRevealed" class="mt-4 flex justify-center">
+            <div v-if="isMultipleChoice && selectedStudent && !isRevealed" class="mt-6 flex justify-center">
               <button
                 type="button"
-                class="btn-primary w-full px-10 py-4 text-lg sm:w-auto"
+                class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-8 py-3.5 text-base font-bold text-white shadow-sm transition hover:bg-brand-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                 :disabled="!pendingAnswer || isSubmitting"
                 @click="onSubmitOption"
               >
-                {{ isSubmitting ? 'Memeriksa...' : 'Kirim Jawaban' }}
+                <Loader2 v-if="isSubmitting" class="h-5 w-5 animate-spin" />
+                <span>{{ isSubmitting ? 'Memeriksa...' : 'Kirim Jawaban' }}</span>
               </button>
             </div>
           </QuestionCard>
 
           <!-- SIAPA YANG INGIN MENJAWAB -->
-          <div class="mt-4 rounded-3xl bg-white p-4 shadow-card">
-            <h2 class="text-xs font-extrabold uppercase tracking-[0.18em] text-slate-500">
-              Siapa yang ingin menjawab?
-            </h2>
-
-            <p
-              v-if="currentStudent"
-              class="mt-3 flex items-center gap-2 rounded-2xl bg-brand-50 px-3.5 py-3 text-base font-extrabold text-brand-700 ring-1 ring-brand-200"
-            >
-              <span class="text-lg" aria-hidden="true">🙋</span>
-              <span class="min-w-0 truncate">{{ currentStudent.name }}</span>
-            </p>
-
-            <div v-if="isLoadingStudents" class="mt-4 text-center text-base font-semibold text-slate-500">
-              Memuat...
+          <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div class="flex items-center justify-between">
+              <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">
+                Siswa Menjawab yang ingin menjawab
+              </h2>
             </div>
 
-            <div v-else-if="classStudents.length === 0" class="mt-4 text-center">
-              <p class="text-3xl" aria-hidden="true">❓</p>
-              <p class="mt-2 font-bold text-slate-700">Belum Ada Siswa di Kelas Ini</p>
-              <p class="text-sm text-slate-500">Tambahkan siswa melalui Dashboard Guru.</p>
+            <div
+              v-if="currentStudent"
+              class="mt-3 flex items-center justify-between rounded-xl border border-brand-200 bg-brand-50/60 px-4 py-3 text-brand-900 shadow-xs"
+            >
+              <div class="flex items-center gap-3 min-w-0">
+                <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-white shadow-xs">
+                  <UserCheck :size="20" />
+                </div>
+                <div class="min-w-0">
+                  <p class="text-xs font-semibold text-brand-600">Sedang Menjawab</p>
+                  <p class="truncate text-base font-bold text-slate-900">{{ currentStudent.name }}</p>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="isLoadingStudents" class="mt-6 py-4 text-center">
+              <Loader2 class="mx-auto h-6 w-6 animate-spin text-slate-400" />
+              <p class="mt-2 text-xs font-medium text-slate-400">Memuat daftar siswa...</p>
+            </div>
+
+            <div v-else-if="classStudents.length === 0" class="mt-4 rounded-xl border border-dashed border-slate-200 p-6 text-center">
+              <HelpCircle class="mx-auto h-8 w-8 text-slate-300" />
+              <p class="mt-2 text-sm font-bold text-slate-700">Belum Ada Siswa di Kelas Ini</p>
+              <p class="mt-0.5 text-xs text-slate-400">Tambahkan siswa terlebih dahulu melalui Dashboard Guru.</p>
             </div>
 
             <div
@@ -663,26 +625,26 @@ onBeforeUnmount(() => {
                 v-for="student in classStudents"
                 :key="student.id"
                 type="button"
-                class="truncate rounded-xl bg-slate-50 px-2.5 py-2.5 text-sm font-extrabold text-slate-700 ring-1
-                       ring-slate-200 transition duration-200 hover:bg-brand-50 hover:text-brand-700
-                       hover:ring-brand-300 focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-300
-                       active:scale-95 sm:text-base"
+                class="group relative truncate rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-left text-sm font-semibold text-slate-700 transition hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500/20 active:scale-95"
                 @click="onSelectStudent(student)"
               >
-                {{ student.name }}
+                <span class="truncate block">{{ student.name }}</span>
               </button>
             </div>
           </div>
         </section>
 
         <!-- ===================== KANAN: PAPAN SKOR ===================== -->
-        <aside class="min-w-0 space-y-4 xl:border-l xl:border-slate-200 xl:pl-5">
-          <!-- PAPAN SKOR -->
-          <div class="rounded-3xl bg-white p-4 shadow-card">
-            <div class="mb-3 flex items-center justify-between gap-3">
-              <h2 class="text-xs font-extrabold uppercase tracking-[0.18em] text-slate-500">Papan Skor</h2>
+        <aside class="min-w-0">
+          <div class="sticky top-20 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div class="mb-4 flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
+              <div class="flex items-center gap-2">
+                <Trophy :size="18" class="text-amber-500" />
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">Papan Skor</h2>
+              </div>
               <ScoreDisplay v-if="currentStudent" :streak="streak" compact />
             </div>
+
             <Leaderboard
               :students="sideLeaderboard"
               :limit="6"
@@ -693,35 +655,40 @@ onBeforeUnmount(() => {
         </aside>
       </div>
 
-    <!-- ============================= SELESAI ============================= -->
-    <div v-else-if="stage === 'finished'" class="mx-auto max-w-3xl animate-fade-in">
-      <div class="card relative overflow-hidden text-center">
-        <ConfettiBurst :count="40" />
-        <p class="text-6xl" aria-hidden="true">🎉</p>
-        <h2 class="mt-3 text-3xl font-extrabold text-slate-900">Kuis Selesai!</h2>
-        <p class="mt-2 text-lg text-slate-500">Terima kasih sudah bermain. Ini hasil akhirnya.</p>
+      <!-- ============================= SELESAI ============================= -->
+      <div v-else-if="stage === 'finished'" class="mx-auto max-w-2xl py-6">
+        <div class="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+          <ConfettiBurst :count="40" />
+          
+          <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-50 text-amber-500 ring-8 ring-amber-50/50">
+            <Sparkles :size="36" />
+          </div>
 
-        <div class="mt-8 text-left">
-          <Leaderboard :students="finishedResults" :limit="10" />
-        </div>
+          <h2 class="mt-4 text-2xl font-extrabold text-slate-900 sm:text-3xl">Kuis Selesai!</h2>
+          <p class="mt-1 text-sm font-medium text-slate-500">Terima kasih telah berpartisipasi. Berikut adalah peringkat akhir kuis.</p>
 
-        <p v-if="isFinishing" class="mt-6 text-sm font-semibold text-slate-400">
-          Menyimpan hasil ke riwayat...
-        </p>
+          <div class="mt-6 rounded-xl border border-slate-100 bg-slate-50/50 p-4 text-left">
+            <Leaderboard :students="finishedResults" :limit="10" />
+          </div>
 
-        <div class="mt-8 flex justify-center">
-          <button
-            type="button"
-            class="btn-primary"
-            :disabled="isFinishing"
-            @click="onFinishBack"
-          >
-            <ArrowLeft :size="18" aria-hidden="true" />
-            Kembali
-          </button>
+          <div v-if="isFinishing" class="mt-4 flex items-center justify-center gap-2 text-xs font-medium text-slate-400">
+            <Loader2 class="h-4 w-4 animate-spin" />
+            <span>Menyimpan hasil kuis ke riwayat...</span>
+          </div>
+
+          <div class="mt-6 flex justify-center">
+            <button
+              type="button"
+              class="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-brand-700 active:scale-95 disabled:opacity-50"
+              :disabled="isFinishing"
+              @click="onFinishBack"
+            >
+              <ArrowLeft :size="18" aria-hidden="true" />
+              <span>Selesai & Kembali</span>
+            </button>
+          </div>
         </div>
       </div>
-    </div>
     </main>
 
     <!-- ============================= FEEDBACK ============================= -->
