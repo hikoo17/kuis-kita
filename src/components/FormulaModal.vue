@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { Plus, Sigma, Trash2, X } from '@lucide/vue'
+import { Sigma, X } from '@lucide/vue'
 import MathText from '@/components/MathText.vue'
 import { useModalFocus } from '@/composables/useModalFocus'
 
@@ -21,14 +21,8 @@ useModalFocus(
 const TABS = [
   { id: 'matrix', label: 'Matriks' },
   { id: 'fraction', label: 'Pecahan' },
-  { id: 'power', label: 'Pangkat/Indeks' },
+  { id: 'power', label: 'Pangkat' },
   { id: 'root', label: 'Akar' },
-  { id: 'abs', label: 'Nilai Mutlak' },
-  { id: 'vector', label: 'Vektor' },
-  { id: 'sigma', label: 'Sigma' },
-  { id: 'limit', label: 'Limit' },
-  { id: 'system', label: 'Sistem' },
-  { id: 'symbol', label: 'Simbol' },
 ]
 const activeTab = ref('matrix')
 
@@ -55,7 +49,7 @@ watch([rows, cols], () => resize(rows.value, cols.value))
 const numerator = ref('')
 const denominator = ref('')
 
-// --- Pangkat / indeks ---
+// --- Pangkat (atas) / indeks (bawah) ---
 const base = ref('')
 const sup = ref('')
 const sub = ref('')
@@ -64,49 +58,16 @@ const sub = ref('')
 const degree = ref('')
 const radicand = ref('')
 
-// --- Nilai mutlak ---
-const absBody = ref('')
-
-// --- Vektor ---
-const vecLetter = ref('')
-
-// --- Sigma ---
-const sigLower = ref('')
-const sigUpper = ref('')
-const sigBody = ref('')
-
-// --- Limit ---
-const limTarget = ref('')
-const limBody = ref('')
-
-// --- Sistem persamaan ---
-const systemRows = ref(['', ''])
-
-const SYMBOLS = [
-  { label: 'π', latex: '\\pi' },
-  { label: 'θ', latex: '\\theta' },
-  { label: 'α', latex: '\\alpha' },
-  { label: 'β', latex: '\\beta' },
-  { label: 'λ', latex: '\\lambda' },
-  { label: 'Δ', latex: '\\Delta' },
+// Simbol yang paling sering dipakai di SMA: sekali ketuk langsung tersisip.
+const QUICK_SYMBOLS = [
   { label: '×', latex: '\\times' },
   { label: '÷', latex: '\\div' },
   { label: '±', latex: '\\pm' },
-  { label: '·', latex: '\\cdot' },
   { label: '≤', latex: '\\le' },
   { label: '≥', latex: '\\ge' },
   { label: '≠', latex: '\\ne' },
-  { label: '≈', latex: '\\approx' },
+  { label: 'π', latex: '\\pi' },
   { label: '∞', latex: '\\infty' },
-  { label: '°', latex: '^\\circ' },
-  { label: '∠', latex: '\\angle' },
-  { label: '⊥', latex: '\\perp' },
-  { label: '∥', latex: '\\parallel' },
-  { label: '→', latex: '\\to' },
-  { label: '√', latex: '\\sqrt{x}' },
-  { label: '∑', latex: '\\sum' },
-  { label: '∫', latex: '\\int' },
-  { label: '∏', latex: '\\prod' },
 ]
 
 const previewLatex = computed(() => {
@@ -125,36 +86,12 @@ const previewLatex = computed(() => {
       const above = sup.value.trim() ? `^{${sup.value.trim()}}` : ''
       return `{${b}}${below}${above}`
     }
-    case 'root':
+    default:
       return degree.value.trim()
         ? `\\sqrt[${degree.value.trim()}]{${radicand.value || 'x'}}`
         : `\\sqrt{${radicand.value || 'x'}}`
-    case 'abs':
-      return `\\left|${absBody.value || 'x'}\\right|`
-    case 'vector':
-      return `\\vec{${vecLetter.value || 'v'}}`
-    case 'sigma':
-      return `\\sum_{${sigLower.value || 'i=1'}}^{${sigUpper.value || 'n'}} ${sigBody.value || 'a_i'}`
-    case 'limit':
-      return `\\lim_{x \\to ${limTarget.value || '0'}} ${limBody.value || 'f(x)'}`
-    case 'system': {
-      const body = systemRows.value
-        .map((row) => row.trim())
-        .filter(Boolean)
-        .join(' \\\\ ')
-      return `\\begin{cases}${body || 'x + y = 1'}\\end{cases}`
-    }
-    default:
-      return ''
   }
 })
-
-function addSystemRow() {
-  if (systemRows.value.length < 5) systemRows.value.push('')
-}
-function removeSystemRow(index) {
-  if (systemRows.value.length > 1) systemRows.value.splice(index, 1)
-}
 
 function reset() {
   activeTab.value = 'matrix'
@@ -171,14 +108,6 @@ function reset() {
   sub.value = ''
   degree.value = ''
   radicand.value = ''
-  absBody.value = ''
-  vecLetter.value = ''
-  sigLower.value = ''
-  sigUpper.value = ''
-  sigBody.value = ''
-  limTarget.value = ''
-  limBody.value = ''
-  systemRows.value = ['', '']
 }
 
 watch(
@@ -209,7 +138,7 @@ function insertSymbol(latex) {
     >
       <div
         v-if="open"
-        class="fixed inset-0 z-[60] flex items-end justify-center bg-slate-900/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+        class="fixed inset-0 z-[60] flex items-end justify-center overflow-hidden bg-slate-900/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
         @click.self="emit('close')"
       >
         <div
@@ -232,12 +161,12 @@ function insertSymbol(latex) {
 
           <div class="flex-1 overflow-y-auto px-5 py-5">
             <!-- Jenis rumus -->
-            <div class="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+            <div class="grid grid-cols-4 gap-2">
               <button
                 v-for="tab in TABS"
                 :key="tab.id"
                 type="button"
-                class="shrink-0 rounded-full px-3.5 py-2 text-sm font-bold transition"
+                class="rounded-2xl px-2 py-3 text-sm font-bold transition"
                 :class="activeTab === tab.id
                   ? 'bg-brand-600 text-white'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
@@ -299,107 +228,41 @@ function insertSymbol(latex) {
               </template>
 
               <!-- Akar -->
-              <template v-else-if="activeTab === 'root'">
+              <template v-else>
                 <label class="label" for="r-deg">Derajat (kosongkan untuk akar kuadrat)</label>
                 <input id="r-deg" v-model="degree" type="text" class="input !text-base" placeholder="contoh: 3" />
                 <label class="label mt-3" for="r-body">Isi akar</label>
                 <input id="r-body" v-model="radicand" type="text" class="input !text-base" placeholder="contoh: x + 1" />
               </template>
-
-              <!-- Nilai mutlak -->
-              <template v-else-if="activeTab === 'abs'">
-                <label class="label" for="a-body">Isi (di antara | |)</label>
-                <input id="a-body" v-model="absBody" type="text" class="input !text-base" placeholder="contoh: x - 3" />
-              </template>
-
-              <!-- Vektor -->
-              <template v-else-if="activeTab === 'vector'">
-                <label class="label" for="v-letter">Huruf vektor (dengan tanda panah)</label>
-                <input id="v-letter" v-model="vecLetter" type="text" class="input !text-base" placeholder="contoh: AB atau v" />
-              </template>
-
-              <!-- Sigma -->
-              <template v-else-if="activeTab === 'sigma'">
-                <div class="grid grid-cols-2 gap-3">
-                  <div>
-                    <label class="label" for="s-low">Batas bawah</label>
-                    <input id="s-low" v-model="sigLower" type="text" class="input !text-base" placeholder="i=1" />
-                  </div>
-                  <div>
-                    <label class="label" for="s-up">Batas atas</label>
-                    <input id="s-up" v-model="sigUpper" type="text" class="input !text-base" placeholder="n" />
-                  </div>
-                </div>
-                <label class="label mt-3" for="s-body">Bentuk yang dijumlah</label>
-                <input id="s-body" v-model="sigBody" type="text" class="input !text-base" placeholder="contoh: a_i" />
-              </template>
-
-              <!-- Limit -->
-              <template v-else-if="activeTab === 'limit'">
-                <label class="label" for="l-target">x mendekati</label>
-                <input id="l-target" v-model="limTarget" type="text" class="input !text-base" placeholder="contoh: 0" />
-                <label class="label mt-3" for="l-body">Fungsi</label>
-                <input id="l-body" v-model="limBody" type="text" class="input !text-base" placeholder="contoh: f(x)" />
-              </template>
-
-              <!-- Sistem persamaan -->
-              <template v-else-if="activeTab === 'system'">
-                <div class="flex items-center justify-between">
-                  <p class="label mb-0">Baris persamaan</p>
-                  <button
-                    type="button"
-                    class="btn-ghost !text-brand-600"
-                    :disabled="systemRows.length >= 5"
-                    @click="addSystemRow"
-                  >
-                    <Plus :size="16" aria-hidden="true" />
-                    Tambah Baris
-                  </button>
-                </div>
-                <div class="mt-2 space-y-2">
-                  <div v-for="(line, index) in systemRows" :key="index" class="flex items-center gap-2">
-                    <input v-model="systemRows[index]" type="text" class="input !text-base" :placeholder="`contoh: ${index === 0 ? 'x + y = 3' : '2x - y = 0'}`" />
-                    <button
-                      type="button"
-                      class="icon-btn-danger"
-                      :disabled="systemRows.length <= 1"
-                      :aria-label="`Hapus baris ${index + 1}`"
-                      @click="removeSystemRow(index)"
-                    >
-                      <Trash2 :size="18" aria-hidden="true" />
-                    </button>
-                  </div>
-                </div>
-              </template>
-
-              <!-- Simbol -->
-              <template v-else>
-                <p class="text-sm text-slate-500">Ketuk simbol untuk langsung menyisipkannya.</p>
-                <div class="mt-3 grid grid-cols-6 gap-2 sm:grid-cols-8">
-                  <button
-                    v-for="symbol in SYMBOLS"
-                    :key="symbol.latex"
-                    type="button"
-                    class="flex h-11 items-center justify-center rounded-xl bg-slate-100 text-lg font-bold text-slate-700 transition hover:bg-brand-50 hover:text-brand-700"
-                    :aria-label="`Sisipkan ${symbol.label}`"
-                    @click="insertSymbol(symbol.latex)"
-                  >
-                    {{ symbol.label }}
-                  </button>
-                </div>
-              </template>
             </div>
 
             <!-- Pratinjau -->
-            <div v-if="activeTab !== 'symbol'" class="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <div class="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
               <p class="mb-1 text-xs font-extrabold uppercase tracking-wide text-slate-400">Pratinjau</p>
               <div class="text-lg text-slate-800">
                 <MathText :text="`$${previewLatex}$`" />
               </div>
             </div>
+
+            <!-- Simbol cepat -->
+            <div class="mt-4">
+              <p class="mb-2 text-xs font-extrabold uppercase tracking-wide text-slate-400">Simbol cepat</p>
+              <div class="grid grid-cols-8 gap-1.5">
+                <button
+                  v-for="symbol in QUICK_SYMBOLS"
+                  :key="symbol.latex"
+                  type="button"
+                  class="flex h-10 items-center justify-center rounded-xl bg-slate-100 text-base font-bold text-slate-700 transition hover:bg-brand-50 hover:text-brand-700"
+                  :aria-label="`Sisipkan ${symbol.label}`"
+                  @click="insertSymbol(symbol.latex)"
+                >
+                  {{ symbol.label }}
+                </button>
+              </div>
+            </div>
           </div>
 
-          <div v-if="activeTab !== 'symbol'" class="flex items-center justify-between gap-3 border-t border-slate-200 px-5 py-4">
+          <div class="flex items-center justify-between gap-3 border-t border-slate-200 px-5 py-4">
             <button type="button" class="btn-neutral !px-4 !py-2 !text-base" @click="emit('close')">Batal</button>
             <button type="button" class="btn-primary !px-5 !py-2.5" @click="insert">Sisipkan</button>
           </div>

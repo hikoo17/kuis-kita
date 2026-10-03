@@ -4,6 +4,8 @@ const FOCUSABLE =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), ' +
   'select:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
+let lockCount = 0
+
 /**
  * Aksesibilitas modal:
  * - memindahkan fokus ke modal saat terbuka,
@@ -18,6 +20,21 @@ const FOCUSABLE =
  */
 export function useModalFocus(isOpen, containerRef, onClose, { closeOnEscape = true } = {}) {
   let previouslyFocused = null
+  let scrollLocked = false
+
+  function lockScroll() {
+    if (scrollLocked) return
+    scrollLocked = true
+    lockCount += 1
+    if (lockCount === 1) document.body.style.overflow = 'hidden'
+  }
+
+  function unlockScroll() {
+    if (!scrollLocked) return
+    scrollLocked = false
+    lockCount = Math.max(0, lockCount - 1)
+    if (lockCount === 0) document.body.style.overflow = ''
+  }
 
   function onKeydown(event) {
     if (event.key === 'Escape') {
@@ -58,6 +75,7 @@ export function useModalFocus(isOpen, containerRef, onClose, { closeOnEscape = t
     async (open) => {
       if (open) {
         previouslyFocused = document.activeElement
+        lockScroll()
         await nextTick()
         const container = containerRef.value
         const first = container ? container.querySelector(FOCUSABLE) : null
@@ -65,6 +83,7 @@ export function useModalFocus(isOpen, containerRef, onClose, { closeOnEscape = t
         document.addEventListener('keydown', onKeydown, true)
       } else {
         document.removeEventListener('keydown', onKeydown, true)
+        unlockScroll()
         if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
           previouslyFocused.focus()
         }
@@ -74,5 +93,8 @@ export function useModalFocus(isOpen, containerRef, onClose, { closeOnEscape = t
     { immediate: true },
   )
 
-  onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown, true))
+  onBeforeUnmount(() => {
+    document.removeEventListener('keydown', onKeydown, true)
+    unlockScroll()
+  })
 }
