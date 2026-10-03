@@ -138,6 +138,7 @@ src/
 │   ├── SubjectSelector.vue     # kartu pilih materi
 │   ├── QuestionCard.vue        # wadah teks soal + gambar soal
 │   ├── MathText.vue            # render rumus LaTeX (KaTeX) + matriks
+│   ├── FormulaModal.vue        # dialog sisip rumus (matriks/pecahan/pangkat/akar)
 │   ├── ImportQuestionsModal.vue# wizard impor soal dari .docx
 │   ├── MultipleChoice.vue      # tombol pilihan A, B, C, D, ... (bisa lebih dari 4)
 │   ├── ShortAnswer.vue         # input jawaban singkat
@@ -278,8 +279,10 @@ Teks soal mendukung **LaTeX** yang digambar dengan **KaTeX**, jadi matriks/pecah
 - Jalan pintas matriks: `[[1, 4], [2, 5]]` → otomatis jadi matriks bertumpuk
 - Matriks LaTeX: `$\begin{pmatrix}1 & 2 \\ 3 & 4\end{pmatrix}$`
 
-Di form soal ada tombol bantu (**Matriks 2×2**, **Matriks 3×3**, **Pecahan**, **Pangkat**, **Akar**)
-yang menyisipkan kerangka rumus di posisi kursor — tidak perlu hafal LaTeX.
+Di form soal ada tombol **Sisipkan Rumus** yang membuka dialog visual: pilih **Matriks**
+(isi kotak sesuai baris × kolom), **Pecahan**, **Pangkat**, atau **Akar**, lihat pratinjaunya,
+lalu sisipkan di posisi kursor — tidak perlu hafal LaTeX. Ada juga **pratinjau langsung** di bawah
+kolom pertanyaan dan di tiap pilihan jawaban yang memuat rumus.
 
 Matriks juga masih bisa **dilampirkan sebagai gambar** lewat kolom Gambar Soal.
 

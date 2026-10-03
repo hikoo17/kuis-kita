@@ -16,6 +16,7 @@ import {
   School,
   Search,
   Settings,
+  Sigma,
   Trash2,
   Users,
   Volume2,
@@ -36,6 +37,7 @@ import ConfirmModal from '@/components/ConfirmModal.vue'
 import MathText from '@/components/MathText.vue'
 import InfoButton from '@/components/InfoButton.vue'
 import InfoModal from '@/components/InfoModal.vue'
+import FormulaModal from '@/components/FormulaModal.vue'
 
 // Wizard impor berat (JSZip + pembaca docx) dimuat hanya saat dipakai.
 const ImportQuestionsModal = defineAsyncComponent(
@@ -541,40 +543,58 @@ const isImageDragging = ref(false)
 
 const imagePreview = computed(() => imagePreviewUrl.value || form.image_url || '')
 
-// --- Impor soal dari Word + sisip rumus cepat ---
+// --- Impor dari Word + sisip rumus lewat dialog visual ---
 const showImport = ref(false)
-const questionTextarea = ref(null)
-const mathTools = [
-  {
-    label: 'Matriks 2×2',
-    title: 'Sisipkan matriks 2×2',
-    snippet: '$\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}$',
-  },
-  {
-    label: 'Matriks 3×3',
-    title: 'Sisipkan matriks 3×3',
-    snippet: '$\\begin{pmatrix} a & b & c \\\\ d & e & f \\\\ g & h & i \\end{pmatrix}$',
-  },
-  { label: 'Pecahan', title: 'Sisipkan pecahan', snippet: '$\\frac{a}{b}$' },
-  { label: 'Pangkat', title: 'Sisipkan pangkat', snippet: '$x^{2}$' },
-  { label: 'Akar', title: 'Sisipkan akar', snippet: '$\\sqrt{x}$' },
-]
+const showFormula = ref(false)
+const activeField = ref('question') // 'question' atau label pilihan (A, B, ...)
+const activeInput = ref(null)
 
-/** Sisipkan potongan LaTeX di posisi kursor pada kolom pertanyaan. */
-function insertQuestionSnippet(snippet) {
-  const el = questionTextarea.value
-  if (!el) {
-    form.question_text = `${form.question_text}${snippet}`
+/** Catat kolom yang terakhir difokus agar rumus masuk ke tempat yang benar. */
+function onFieldFocus(field, event) {
+  activeField.value = field
+  activeInput.value = event.target
+}
+
+function currentFieldValue() {
+  if (activeField.value === 'question') return form.question_text
+  return form.options.find((option) => option.label === activeField.value)?.text ?? ''
+}
+
+function setCurrentFieldValue(value) {
+  if (activeField.value === 'question') {
+    form.question_text = value
     return
   }
-  const start = el.selectionStart ?? form.question_text.length
-  const end = el.selectionEnd ?? start
-  form.question_text = `${form.question_text.slice(0, start)}${snippet}${form.question_text.slice(end)}`
+  const option = form.options.find((item) => item.label === activeField.value)
+  if (option) option.text = value
+}
+
+/** Sisipkan rumus ($latex$) di posisi kursor kolom yang sedang difokus. */
+function insertFormula(latex) {
+  const token = `$${latex}$`
+  const element = activeInput.value
+  const current = currentFieldValue()
+
+  if (!element) {
+    setCurrentFieldValue(`${current}${token}`)
+    return
+  }
+
+  const start = element.selectionStart ?? current.length
+  const end = element.selectionEnd ?? start
+  setCurrentFieldValue(`${current.slice(0, start)}${token}${current.slice(end)}`)
+
   nextTick(() => {
-    el.focus()
-    const cursor = start + snippet.length
-    el.setSelectionRange(cursor, cursor)
+    element.focus()
+    const cursor = start + token.length
+    element.setSelectionRange(cursor, cursor)
   })
+}
+
+/** Tampilkan pratinjau hanya untuk teks yang memuat rumus/matriks. */
+function hasMath(value) {
+  const text = String(value ?? '')
+  return text.includes('$') || text.includes('[[')
 }
 
 function onImported(count) {
@@ -1641,31 +1661,31 @@ onMounted(async () => {
             </div>
 
             <div>
-              <label class="label" for="q-text">Pertanyaan</label>
-              <div class="mb-2 flex flex-wrap gap-1.5">
+              <div class="flex items-center justify-between gap-3">
+                <label class="label mb-0" for="q-text">Pertanyaan</label>
                 <button
-                  v-for="tool in mathTools"
-                  :key="tool.label"
                   type="button"
-                  class="rounded-lg bg-slate-100 px-2.5 py-1.5 text-sm font-bold text-slate-600 transition hover:bg-brand-50 hover:text-brand-700"
-                  :title="tool.title"
-                  @click="insertQuestionSnippet(tool.snippet)"
+                  class="btn-ghost !text-brand-600"
+                  @click="showFormula = true"
                 >
-                  {{ tool.label }}
+                  <Sigma :size="16" aria-hidden="true" />
+                  Sisipkan Rumus
                 </button>
               </div>
               <textarea
                 id="q-text"
-                ref="questionTextarea"
                 v-model="form.question_text"
                 class="input min-h-[7rem] leading-relaxed"
                 placeholder="Tulis pertanyaan di sini... Boleh pakai $...$ untuk rumus."
+                @focus="onFieldFocus('question', $event)"
               />
-              <p class="mt-1.5 text-xs text-slate-400">
-                Rumus ditulis dengan LaTeX di antara <span class="font-bold">$...$</span>, contoh
-                <span class="font-bold">$\frac{a}{b}$</span> atau matriks
-                <span class="font-bold">$\begin{pmatrix}1 & 2 \\ 3 & 4\end{pmatrix}$</span>.
-              </p>
+              <div class="mt-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <p class="mb-1 text-xs font-extrabold uppercase tracking-wide text-slate-400">Pratinjau</p>
+                <div class="text-lg text-slate-800">
+                  <MathText v-if="form.question_text.trim()" :text="form.question_text" />
+                  <span v-else class="text-slate-400">Pratinjau soal muncul di sini.</span>
+                </div>
+              </div>
             </div>
 
             <div>
@@ -1747,21 +1767,33 @@ onMounted(async () => {
                   Tambah Pilihan
                 </button>
               </div>
-              <div v-for="option in form.options" :key="option.label" class="flex items-center gap-3">
-                <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-50 font-extrabold text-brand-700">
-                  {{ option.label }}
-                </span>
-                <input v-model="option.text" type="text" class="input flex-1" :placeholder="`Pilihan ${option.label}...`" />
-                <button
-                  type="button"
-                  class="icon-btn-danger"
-                  :disabled="form.options.length <= 2"
-                  :title="`Hapus pilihan ${option.label}`"
-                  :aria-label="`Hapus pilihan ${option.label}`"
-                  @click="removeOption(option.label)"
-                >
-                  <X class="h-5 w-5" aria-hidden="true" />
-                </button>
+              <div v-for="option in form.options" :key="option.label" class="rounded-2xl bg-slate-50 p-3">
+                <div class="flex items-center gap-3">
+                  <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-50 font-extrabold text-brand-700">
+                    {{ option.label }}
+                  </span>
+                  <input
+                    v-model="option.text"
+                    type="text"
+                    class="input flex-1"
+                    :placeholder="`Pilihan ${option.label}...`"
+                    :aria-label="`Pilihan ${option.label}`"
+                    @focus="onFieldFocus(option.label, $event)"
+                  />
+                  <button
+                    type="button"
+                    class="icon-btn-danger"
+                    :disabled="form.options.length <= 2"
+                    :title="`Hapus pilihan ${option.label}`"
+                    :aria-label="`Hapus pilihan ${option.label}`"
+                    @click="removeOption(option.label)"
+                  >
+                    <X class="h-5 w-5" aria-hidden="true" />
+                  </button>
+                </div>
+                <div v-if="hasMath(option.text)" class="mt-2 rounded-xl bg-white px-3 py-2 text-slate-800 ring-1 ring-slate-200">
+                  <MathText :text="option.text" />
+                </div>
               </div>
             </div>
 
@@ -2174,6 +2206,12 @@ onMounted(async () => {
       :is-loading="confirmState.loading"
       @confirm="runConfirm"
       @cancel="cancelConfirm"
+    />
+
+    <FormulaModal
+      :open="showFormula"
+      @close="showFormula = false"
+      @insert="insertFormula"
     />
 
     <ImportQuestionsModal
