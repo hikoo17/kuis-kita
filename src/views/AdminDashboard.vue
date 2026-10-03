@@ -2420,7 +2420,7 @@ onMounted(async () => {
       <button
         v-if="sessions.length > 0"
         type="button"
-        class="inline-flex items-center gap-2 rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-200 active:scale-95 disabled:opacity-50 sm:text-base"
+        class="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-bold text-emerald-700 transition hover:bg-emerald-600 hover:text-white active:scale-95 disabled:opacity-50 shrink-0"
         :disabled="isExportingHistory || filteredSessions.length === 0"
         @click="handleExportHistory"
       >
