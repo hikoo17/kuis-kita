@@ -22,7 +22,7 @@ function emojiFor(index) {
     <div class="mx-auto flex max-w-3xl items-center gap-3">
       <button
         type="button"
-        class="btn-neutral shrink-0 !px-3.5 !py-2 !text-base !shadow-none !ring-0 hover:bg-slate-100"
+        class="btn-neutral shrink-0 !px-3.5 !py-2 !text-base shadow-card !ring-0 hover:bg-slate-100 hover:shadow-card-hover"
         title="Kembali untuk ganti kelas"
         @click="emit('back')"
       >
