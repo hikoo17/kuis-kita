@@ -13,6 +13,20 @@ export function normalizeAnswer(value) {
 }
 
 /**
+ * Durasi menjawab efektif (detik) untuk satu soal.
+ * - time_limit terisi (termasuk 0) → pakai nilai soal itu.
+ * - kosong (null/undefined/'') → ikut pengaturan global.
+ * - 0 berarti tanpa batas waktu.
+ */
+export function resolveTimeLimit(questionTimeLimit, globalTimeLimit) {
+  if (questionTimeLimit !== null && questionTimeLimit !== undefined && String(questionTimeLimit).trim() !== '') {
+    const perQuestion = Math.floor(Number(questionTimeLimit))
+    if (Number.isFinite(perQuestion)) return Math.max(0, perQuestion)
+  }
+  return Number(globalTimeLimit) || 0
+}
+
+/**
  * The whole quiz flow lives here:
  * pilih siswa -> pilih materi -> hitung mundur -> jawab soal -> feedback.
  */
@@ -72,7 +86,10 @@ export function useQuiz() {
 
   function startTimer() {
     stopTimer()
-    const total = Number(settings.value.answerTimeLimit) || 0
+    const total = resolveTimeLimit(
+      currentQuestion.value?.time_limit,
+      settings.value.answerTimeLimit,
+    )
     if (total <= 0) return
     timerTotal.value = total
     timeLeft.value = total

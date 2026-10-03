@@ -7,6 +7,8 @@ defineProps({
   totalQuestions: { type: Number, default: 0 },
   // Seconds left on the answer timer. Null hides the pill.
   timeLeft: { type: Number, default: null },
+  // Effective answer limit for this question (null = unlimited/hidden).
+  timeLimit: { type: Number, default: null },
 })
 </script>
 
@@ -24,6 +26,10 @@ defineProps({
       >
         <span aria-hidden="true">⏱</span>
         <span>{{ timeLeft }}</span>
+      </span>
+      <span v-else-if="timeLimit > 0" class="chip bg-brand-50 tabular-nums text-brand-700">
+        <span aria-hidden="true">⏱</span>
+        <span>{{ timeLimit }} dtk</span>
       </span>
     </header>
 

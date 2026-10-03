@@ -41,11 +41,14 @@ create table if not exists public.questions (
   options        jsonb,
   correct_answer text not null,
   image_url      text,
+  time_limit     integer,
   created_at     timestamptz not null default now(),
   constraint questions_subject_not_blank check (char_length(btrim(subject)) between 1 and 60),
   constraint questions_type_valid check (type in ('multiple_choice', 'short_answer')),
   constraint questions_text_not_blank check (char_length(btrim(question_text)) >= 1),
   constraint questions_answer_not_blank check (char_length(btrim(correct_answer)) >= 1),
+  -- Batas waktu per soal (detik). NULL = ikut pengaturan global, 0 = tanpa batas.
+  constraint questions_time_limit_valid check (time_limit is null or time_limit >= 0),
   -- Pilihan ganda wajib memiliki minimal 2 opsi berupa array JSON.
   constraint questions_options_valid check (
     type = 'short_answer'

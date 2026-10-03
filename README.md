@@ -23,6 +23,8 @@ sedangkan kode, nama variabel, nama komponen, dan kolom database tetap Bahasa In
   **Waktu Habis!** tanpa membocorkan kunci jawaban (pilihannya **Ganti Siswa** / **Lanjut**).
 - **Timer menjawab** — setiap giliran dibatasi waktu (bawaan 30 detik, bisa diubah di
   Pengaturan Kuis, 0 = tanpa batas). Bar berubah merah + bunyi tik di 10 detik terakhir.
+  Guru juga bisa mengatur **waktu per soal** (detik) di form soal / pratinjau import —
+  kosongkan untuk ikut global, isi 0 untuk tanpa batas pada soal itu.
 - **Efek suara & musik latar** — dibuat langsung dengan Web Audio API (tanpa file audio):
   efek untuk pilih nama, pilih materi, jawaban benar/salah, streak, dan fanfare saat kuis selesai;
   plus musik latar lembut yang bisa di-loop. Ada tombol on/off terpisah untuk keduanya di header
@@ -184,7 +186,8 @@ supabase/
 ├── migration_subject_scores.sql # migrasi skor per materi (untuk DB yang sudah ada)
 ├── migration_quiz_sessions.sql  # migrasi arsip sesi (untuk DB yang sudah ada)
 ├── migration_classes.sql        # migrasi tabel classes (untuk DB yang sudah ada)
-└── migration_question_images.sql # migrasi kolom gambar + bucket Storage (untuk DB yang sudah ada)
+├── migration_question_images.sql # migrasi kolom gambar + bucket Storage (untuk DB yang sudah ada)
+└── migration_question_time_limit.sql # migrasi batas waktu per soal (untuk DB yang sudah ada)
 ```
 
 ---
@@ -311,6 +314,11 @@ saat diganti/dihapus.
 > SQL Editor (menambah kolom `image_url` + bucket `question-images` beserta izinnya). Kalau belum
 > dijalankan, guru tetap bisa menyimpan soal **tanpa** gambar; menyimpan soal bergambar akan
 > menampilkan pesan agar migrasi dijalankan.
+>
+> ℹ️ Batas waktu per soal butuh sekali migrasi: jalankan
+> **`supabase/migration_question_time_limit.sql`** di SQL Editor (menambah kolom `time_limit`).
+> Kalau belum dijalankan, menyimpan soal dengan waktu khusus akan menampilkan pesan agar
+> migrasi dijalankan; soal tanpa waktu khusus tetap tersimpan normal.
 
 ---
 

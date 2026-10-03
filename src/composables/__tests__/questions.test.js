@@ -17,6 +17,7 @@ describe('sanitizeQuestion', () => {
       options: null,
       correct_answer: '2',
       image_url: null,
+      time_limit: null,
     })
   })
 
@@ -68,6 +69,18 @@ describe('sanitizeQuestion', () => {
         image_url: '  https://contoh/gambar.png ',
       }).image_url,
     ).toBe('https://contoh/gambar.png')
+  })
+
+  it('menormalkan batas waktu per soal', () => {
+    const base = { subject: 'x', type: 'short_answer', question_text: 'q', correct_answer: 'a' }
+    expect(sanitizeQuestion(base).time_limit).toBeNull()
+    expect(sanitizeQuestion({ ...base, time_limit: '' }).time_limit).toBeNull()
+    expect(sanitizeQuestion({ ...base, time_limit: '45' }).time_limit).toBe(45)
+    expect(sanitizeQuestion({ ...base, time_limit: 0 }).time_limit).toBe(0)
+    // Negatif dijepit ke 0, terlalu besar dijepit ke batas maksimum.
+    expect(sanitizeQuestion({ ...base, time_limit: -5 }).time_limit).toBe(0)
+    expect(sanitizeQuestion({ ...base, time_limit: 9999 }).time_limit).toBe(600)
+    expect(sanitizeQuestion({ ...base, time_limit: 'rusak' }).time_limit).toBeNull()
   })
 })
 

@@ -11,12 +11,25 @@ export const MISSING_IMAGE_COLUMN_MESSAGE =
   'Kolom gambar belum tersedia di database. Jalankan supabase/migration_question_images.sql ' +
   'di SQL Editor Supabase terlebih dahulu.'
 
+/** Petunjuk ketika kolom batas waktu belum tersedia di database. */
+export const MISSING_TIME_COLUMN_MESSAGE =
+  'Kolom batas waktu belum tersedia di database. Jalankan supabase/migration_question_time_limit.sql ' +
+  'di SQL Editor Supabase terlebih dahulu.'
+
 /** Deteksi error Postgres/PostgREST "kolom image_url tidak ada". */
 function isMissingImageColumn(error) {
   if (!error) return false
   const code = error.code || ''
   const message = error.message || ''
   return code === 'PGRST204' || code === '42703' || message.includes('image_url')
+}
+
+/** Deteksi error Postgres/PostgREST "kolom time_limit tidak ada". */
+function isMissingTimeColumn(error) {
+  if (!error) return false
+  const code = error.code || ''
+  const message = error.message || ''
+  return code === 'PGRST204' || code === '42703' || message.includes('time_limit')
 }
 
 /** Supabase Storage bucket that holds optional question images. */
@@ -32,10 +45,27 @@ const error = ref('')
 // null = belum diketahui, true/false = hasil deteksi kolom image_url.
 const imageColumnAvailable = ref(null)
 
+// null = belum diketahui, true/false = hasil deteksi kolom time_limit.
+const timeColumnAvailable = ref(null)
+
 /** Buang kolom gambar dari payload (dipakai saat kolom belum dimigrasi). */
 function withoutImageColumn(clean) {
   const { image_url: _skip, ...rest } = clean
   return rest
+}
+
+/** Buang kolom batas waktu dari payload (dipakai saat kolom belum dimigrasi). */
+function withoutTimeColumn(clean) {
+  const { time_limit: _skip, ...rest } = clean
+  return rest
+}
+
+/** Buang kolom-kolom baru yang belum tersedia di database. */
+function stripUnavailableColumns(clean) {
+  let payload = clean
+  if (imageColumnAvailable.value === false) payload = withoutImageColumn(payload)
+  if (timeColumnAvailable.value === false) payload = withoutTimeColumn(payload)
+  return payload
 }
 
 const subjects = computed(() => {
@@ -103,13 +133,18 @@ export function useQuestions() {
   async function addQuestion(payload) {
     const clean = sanitizeQuestion(payload)
 
-    // Kolom gambar belum dimigrasi: tetap izinkan soal tanpa gambar, tapi
-    // tolak dengan pesan jelas kalau guru memang melampirkan gambar.
-    if (imageColumnAvailable.value === false) {
-      if (clean.image_url) throw new Error(MISSING_IMAGE_COLUMN_MESSAGE)
+    // Kolom gambar / batas waktu belum dimigrasi: tetap izinkan soal biasa,
+    // tapi tolak dengan pesan jelas kalau guru memang memakai fiturnya.
+    if (imageColumnAvailable.value === false || timeColumnAvailable.value === false) {
+      if (imageColumnAvailable.value === false && clean.image_url) {
+        throw new Error(MISSING_IMAGE_COLUMN_MESSAGE)
+      }
+      if (timeColumnAvailable.value === false && clean.time_limit != null) {
+        throw new Error(MISSING_TIME_COLUMN_MESSAGE)
+      }
       const { data, error } = await supabase
         .from('questions')
-        .insert(withoutImageColumn(clean))
+        .insert(stripUnavailableColumns(clean))
         .select()
         .single()
       if (error) throw new Error('Soal belum berhasil disimpan. Silakan coba lagi.')
@@ -124,7 +159,19 @@ export function useQuestions() {
       if (clean.image_url) throw new Error(MISSING_IMAGE_COLUMN_MESSAGE)
       const retry = await supabase
         .from('questions')
-        .insert(withoutImageColumn(clean))
+        .insert(stripUnavailableColumns(clean))
+        .select()
+        .single()
+      data = retry.data
+      insertError = retry.error
+    }
+
+    if (insertError && isMissingTimeColumn(insertError)) {
+      timeColumnAvailable.value = false
+      if (clean.time_limit != null) throw new Error(MISSING_TIME_COLUMN_MESSAGE)
+      const retry = await supabase
+        .from('questions')
+        .insert(stripUnavailableColumns(clean))
         .select()
         .single()
       data = retry.data
@@ -136,6 +183,7 @@ export function useQuestions() {
       throw new Error('Soal belum berhasil disimpan. Silakan coba lagi.')
     }
     imageColumnAvailable.value = true
+    if (timeColumnAvailable.value !== false) timeColumnAvailable.value = true
     questions.value = [...questions.value, data]
     return data
   }
@@ -143,11 +191,16 @@ export function useQuestions() {
   async function updateQuestion(id, payload) {
     const clean = sanitizeQuestion(payload)
 
-    if (imageColumnAvailable.value === false) {
-      if (clean.image_url) throw new Error(MISSING_IMAGE_COLUMN_MESSAGE)
+    if (imageColumnAvailable.value === false || timeColumnAvailable.value === false) {
+      if (imageColumnAvailable.value === false && clean.image_url) {
+        throw new Error(MISSING_IMAGE_COLUMN_MESSAGE)
+      }
+      if (timeColumnAvailable.value === false && clean.time_limit != null) {
+        throw new Error(MISSING_TIME_COLUMN_MESSAGE)
+      }
       const { data, error } = await supabase
         .from('questions')
-        .update(withoutImageColumn(clean))
+        .update(stripUnavailableColumns(clean))
         .eq('id', id)
         .select()
         .single()
@@ -168,7 +221,20 @@ export function useQuestions() {
       if (clean.image_url) throw new Error(MISSING_IMAGE_COLUMN_MESSAGE)
       const retry = await supabase
         .from('questions')
-        .update(withoutImageColumn(clean))
+        .update(stripUnavailableColumns(clean))
+        .eq('id', id)
+        .select()
+        .single()
+      data = retry.data
+      updateError = retry.error
+    }
+
+    if (updateError && isMissingTimeColumn(updateError)) {
+      timeColumnAvailable.value = false
+      if (clean.time_limit != null) throw new Error(MISSING_TIME_COLUMN_MESSAGE)
+      const retry = await supabase
+        .from('questions')
+        .update(stripUnavailableColumns(clean))
         .eq('id', id)
         .select()
         .single()
@@ -181,6 +247,7 @@ export function useQuestions() {
       throw new Error('Perubahan soal belum berhasil disimpan. Silakan coba lagi.')
     }
     imageColumnAvailable.value = true
+    if (timeColumnAvailable.value !== false) timeColumnAvailable.value = true
     questions.value = questions.value.map((question) => (question.id === id ? data : question))
     return data
   }
@@ -225,6 +292,20 @@ export function useQuestions() {
     const { error: checkError } = await supabase.from('questions').select('image_url').limit(1)
     imageColumnAvailable.value = !checkError
     return imageColumnAvailable.value
+  }
+
+  /**
+   * Cek apakah kolom batas waktu per soal sudah tersedia.
+   * Dipakai dashboard agar pesan error saat menyimpan sudah tepat.
+   */
+  async function checkTimeSupport() {
+    if (!isSupabaseConfigured) {
+      timeColumnAvailable.value = false
+      return false
+    }
+    const { error: checkError } = await supabase.from('questions').select('time_limit').limit(1)
+    timeColumnAvailable.value = !checkError
+    return timeColumnAvailable.value
   }
 
   /**
@@ -281,6 +362,8 @@ export function useQuestions() {
     deleteQuestionImage,
     imageColumnAvailable,
     checkImageSupport,
+    timeColumnAvailable,
+    checkTimeSupport,
   }
 }
 
@@ -292,6 +375,9 @@ export function shuffleArray(input) {
   }
   return list
 }
+
+/** Batas atas wajar untuk durasi per soal (detik). */
+export const QUESTION_TIME_LIMIT_MAX = 600
 
 /** Keep only the columns the table expects and trim user input. */
 export function sanitizeQuestion(payload) {
@@ -307,6 +393,13 @@ export function sanitizeQuestion(payload) {
         .filter((option) => option.label && (option.text || option.image))
     : null
 
+  // Batas waktu per soal: kosong = ikut pengaturan global, 0 = tanpa batas.
+  const rawLimit = payload.time_limit
+  const parsedLimit =
+    rawLimit === null || rawLimit === undefined || String(rawLimit).trim() === ''
+      ? null
+      : Math.max(0, Math.min(QUESTION_TIME_LIMIT_MAX, Math.floor(Number(rawLimit))))
+
   return {
     subject: String(payload.subject ?? '').trim(),
     type: payload.type,
@@ -314,5 +407,6 @@ export function sanitizeQuestion(payload) {
     options,
     correct_answer: String(payload.correct_answer ?? '').trim(),
     image_url: String(payload.image_url ?? '').trim() || null,
+    time_limit: Number.isFinite(parsedLimit) ? parsedLimit : null,
   }
 }

@@ -73,6 +73,7 @@ const {
   deleteQuestionImage,
   imageColumnAvailable,
   checkImageSupport,
+  checkTimeSupport,
 } = useQuestions()
 
 const {
@@ -548,6 +549,7 @@ function newQuestionState(subject) {
       options: [emptyOption('A'), emptyOption('B'), emptyOption('C'), emptyOption('D')],
       correct_answer: '',
       image_url: '',
+      time_limit: null,
     },
     imageFile: null,
     previewUrl: '',
@@ -797,6 +799,7 @@ function startEdit(question) {
   state.form.question_text = question.question_text
   state.form.correct_answer = question.correct_answer
   state.form.image_url = question.image_url ?? ''
+  state.form.time_limit = question.time_limit ?? null
 
   const existing = Array.isArray(question.options) ? question.options : []
   const source = existing.length > 0 ? existing : emptyForm().options
@@ -889,6 +892,7 @@ async function handleSaveAll() {
         options: form.type === 'multiple_choice' ? form.options : null,
         correct_answer: form.correct_answer,
         image_url: imageUrl,
+        time_limit: form.time_limit,
       }
 
       if (state.editingId) {
@@ -1175,6 +1179,7 @@ onMounted(async () => {
     fetchClasses(),
     fetchSessions(),
     checkImageSupport(),
+    checkTimeSupport(),
   ])
 })
 </script>
@@ -1804,13 +1809,30 @@ onMounted(async () => {
                         </button>
                       </div>
 
-                      <div class="mt-3">
-                        <label class="label" :for="`q-type-${state.key}`">Tipe Soal</label>
-                        <select :id="`q-type-${state.key}`" v-model="state.form.type" class="input">
-                          <option value="multiple_choice">Pilihan Ganda</option>
-                          <option value="short_answer">Isian Singkat</option>
-                        </select>
+                      <div class="grid grid-cols-2 gap-4">
+                        <div>
+                          <label class="label" :for="`q-type-${state.key}`">Tipe Soal</label>
+                          <select :id="`q-type-${state.key}`" v-model="state.form.type" class="input">
+                            <option value="multiple_choice">Pilihan Ganda</option>
+                            <option value="short_answer">Isian Singkat</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label class="label" :for="`q-time-${state.key}`">Waktu (detik)</label>
+                          <input
+                            :id="`q-time-${state.key}`"
+                            v-model="state.form.time_limit"
+                            type="number"
+                            min="0"
+                            max="600"
+                            class="input"
+                            placeholder="Ikut global"
+                          />
+                        </div>
                       </div>
+                      <p class="mt-1.5 text-xs text-slate-400">
+                        Kosongkan untuk ikut pengaturan global · isi 0 untuk tanpa batas waktu.
+                      </p>
 
             <div class="mt-4">
               <label class="label" :for="`q-text-${state.key}`">Pertanyaan</label>
@@ -2074,6 +2096,12 @@ onMounted(async () => {
               <div class="flex flex-wrap items-center gap-2">
                 <span class="chip bg-slate-200 text-slate-600">{{ typeLabel(question.type) }}</span>
                 <span class="chip bg-emerald-100 text-emerald-700">Kunci: {{ question.correct_answer }}</span>
+                <span
+                  v-if="question.time_limit !== null && question.time_limit !== undefined"
+                  class="chip bg-brand-50 text-brand-700"
+                >
+                  ⏱ {{ question.time_limit === 0 ? 'Tanpa batas' : `${question.time_limit} dtk` }}
+                </span>
               </div>
 
               <MathText class="mt-3 block font-bold text-slate-800" :text="question.question_text" />

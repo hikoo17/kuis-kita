@@ -71,6 +71,7 @@ async function onFileChange(event) {
     items.value = parsed.map((item) => ({
       ...item,
       selected: true,
+      timeLimit: null,
       options: item.options.map((option) => ({ ...option, image: null, imageFile: null, previewUrl: '' })),
     }))
   } catch (err) {
@@ -190,6 +191,7 @@ async function runImport() {
         options: item.type === 'multiple_choice' ? item.options : null,
         correct_answer: item.correctAnswer,
         image_url: null,
+        time_limit: item.timeLimit,
       })
       imported += 1
     }
@@ -377,7 +379,7 @@ async function runImport() {
                         </div>
                       </div>
 
-                      <div class="mt-2 flex items-center gap-2">
+                      <div class="mt-2 flex flex-wrap items-center gap-2">
                         <label class="text-sm font-bold text-slate-500" :for="`key-${index}`">Kunci</label>
                         <select
                           v-if="item.type === 'multiple_choice'"
@@ -395,6 +397,18 @@ async function runImport() {
                           type="text"
                           class="input !py-2 !text-base"
                           placeholder="Jawaban benar"
+                        />
+                        <label class="ms-auto text-sm font-bold text-slate-500" :for="`time-${index}`">
+                          Waktu <span class="font-normal text-slate-400">(dtk)</span>
+                        </label>
+                        <input
+                          :id="`time-${index}`"
+                          v-model="item.timeLimit"
+                          type="number"
+                          min="0"
+                          max="600"
+                          class="input w-24 !py-2 !text-base"
+                          placeholder="Global"
                         />
                       </div>
                     </div>

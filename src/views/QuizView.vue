@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { ArrowLeft } from '@lucide/vue'
 
-import { useQuiz, isAnswering } from '@/composables/useQuiz'
+import { useQuiz, isAnswering, resolveTimeLimit } from '@/composables/useQuiz'
 import { useStudents } from '@/composables/useStudents'
 import { useQuestions, ALL_SUBJECTS } from '@/composables/useQuestions'
 import { useSubjects } from '@/composables/useSubjects'
@@ -153,6 +153,11 @@ const progressBarPercent = computed(() => {
 
 const isMultipleChoice = computed(() => currentQuestion.value?.type === 'multiple_choice')
 const isRevealed = computed(() => ['correct', 'wrong', 'timeout'].includes(answerStatus.value))
+
+/** Batas waktu efektif soal ini (0/null = tanpa batas → chip disembunyikan). */
+const effectiveTimeLimit = computed(() =>
+  resolveTimeLimit(currentQuestion.value?.time_limit, settings.value.answerTimeLimit),
+)
 
 // Clear the pending choice whenever a question is reset or a new one starts.
 watch([() => currentQuestion.value?.id, answerStatus], () => {
@@ -600,6 +605,7 @@ onBeforeUnmount(() => {
             :question-number="currentQuestionNumber"
             :total-questions="totalQuestions"
             :time-left="isTimerRunning ? timeLeft : null"
+            :time-limit="effectiveTimeLimit > 0 ? effectiveTimeLimit : null"
           >
             <!-- Pilihan ganda selalu terlihat supaya kelas bisa ikut berpikir.
                  Klik sebelum memilih siswa menampilkan modal pengingat. -->
