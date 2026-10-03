@@ -117,7 +117,7 @@ export function useSound() {
     const ctx = getAudioContext()
     if (!ctx) return
 
-    const gain = Math.max(0, Math.min(1, (Number.isFinite(volume) ? volume : 100) / 100)) * 0.85
+    const gain = Math.max(0, Math.min(1, (Number.isFinite(volume) ? volume : 100) / 100)) * 1.15
 
     try {
       player(ctx, gain)

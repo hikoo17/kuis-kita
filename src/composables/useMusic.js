@@ -46,7 +46,7 @@ const TRACKS = {
   },
 }
 
-const MAX_LEVEL = 0.8
+const MAX_LEVEL = 1.05
 
 let bus = null
 let timer = null
