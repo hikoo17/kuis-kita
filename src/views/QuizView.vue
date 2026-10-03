@@ -502,7 +502,7 @@ onBeforeUnmount(() => {
       <div class="mx-auto flex max-w-[1700px] items-center gap-3 px-4 py-2 lg:px-6">
         <button
           type="button"
-          class="btn-neutral !px-3.5 !py-2 !text-base !shadow-none !ring-0 hover:bg-slate-100 sm:hidden"
+          class="btn-neutral !px-3.5 !py-2 !text-base !shadow-none !ring-0 hover:bg-slate-100"
           title="Kembali untuk ganti materi"
           @click="requestBackToSubject"
         >
@@ -583,20 +583,8 @@ onBeforeUnmount(() => {
     </template>
 
       <!-- =============================== SOAL =============================== -->
-      <template v-else-if="stage === 'quiz'">
-      <!-- Tombol kembali (desktop): di atas card, paling kiri. -->
-      <div class="mb-4 hidden sm:block">
-        <button
-          type="button"
-          class="btn-neutral !px-3.5 !py-2 !text-base !shadow-none !ring-0 hover:bg-slate-100"
-          title="Kembali untuk ganti materi"
-          @click="requestBackToSubject"
-        >
-          <ArrowLeft :size="18" aria-hidden="true" />
-          Kembali
-        </button>
-      </div>
       <div
+        v-else-if="stage === 'quiz'"
         class="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,7fr)_minmax(0,3fr)]"
       >
         <!-- ====================== KIRI: SOAL & PILIHAN ====================== -->
@@ -709,7 +697,6 @@ onBeforeUnmount(() => {
           </div>
         </aside>
       </div>
-      </template>
 
     <!-- ============================= SELESAI ============================= -->
     <div v-else-if="stage === 'finished'" class="mx-auto max-w-3xl animate-fade-in">
