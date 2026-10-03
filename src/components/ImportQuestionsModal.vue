@@ -92,6 +92,16 @@ function isImportable(item) {
   return true
 }
 
+/**
+ * Saat diubah jadi isian singkat, kunci berupa huruf pilihan (A-E) tidak lagi
+ * bermakna — kosongkan supaya guru mengetik jawaban sebenarnya.
+ */
+function onTypeChange(item) {
+  if (item.type === 'short_answer' && /^[A-E]$/.test(item.correctAnswer.trim())) {
+    item.correctAnswer = ''
+  }
+}
+
 async function runImport() {
   const queue = items.value.filter((item) => item.selected && isImportable(item))
   if (queue.length === 0) return
@@ -144,7 +154,7 @@ async function runImport() {
           <!-- Kepala -->
           <div class="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4 sm:rounded-t-3xl">
             <div class="min-w-0">
-              <h2 id="import-title" class="text-lg font-extrabold text-slate-900 sm:text-xl">Impor Soal dari Word</h2>
+              <h2 id="import-title" class="text-lg font-extrabold text-slate-900 sm:text-xl">Import Soal dari Word</h2>
               <p class="mt-0.5 truncate text-sm text-slate-500">
                 Materi: <span class="font-bold text-brand-700">{{ subject }}</span>
               </p>
@@ -216,9 +226,15 @@ async function runImport() {
                     <div class="min-w-0 flex-1">
                       <div class="flex flex-wrap items-center gap-2">
                         <span class="chip bg-slate-200 text-slate-600">Soal {{ index + 1 }}</span>
-                        <span class="chip bg-brand-50 text-brand-700">
-                          {{ item.type === 'multiple_choice' ? 'Pilihan Ganda' : 'Isian Singkat' }}
-                        </span>
+                        <select
+                          v-model="item.type"
+                          class="input w-auto !px-2.5 !py-1 !text-sm"
+                          :aria-label="`Jenis soal ${index + 1}`"
+                          @change="onTypeChange(item)"
+                        >
+                          <option value="multiple_choice">Pilihan Ganda</option>
+                          <option value="short_answer">Isian Singkat</option>
+                        </select>
                         <span
                           class="chip"
                           :class="isImportable(item) ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'"
@@ -291,7 +307,7 @@ async function runImport() {
               :disabled="selectedCount === 0 || isImporting"
               @click="runImport"
             >
-              {{ isImporting ? 'Menyimpan...' : `Impor ${selectedCount} Soal` }}
+              {{ isImporting ? 'Menyimpan...' : `Import ${selectedCount} Soal` }}
             </button>
           </div>
         </div>

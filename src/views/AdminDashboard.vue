@@ -605,7 +605,7 @@ function hasMath(value) {
 
 function onImported(count) {
   showImport.value = false
-  showToast(`${count} soal berhasil diimpor.`)
+  showToast(`${count} soal berhasil diimport.`)
 }
 
 const isMultipleChoiceForm = computed(() => form.type === 'multiple_choice')
