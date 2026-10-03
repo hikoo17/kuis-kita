@@ -194,6 +194,21 @@ export function useQuestions() {
     questions.value = questions.value.filter((question) => question.id !== id)
   }
 
+  /** Hapus semua soal pada satu materi. Mengembalikan jumlah yang terhapus. */
+  async function deleteQuestionsBySubject(subject) {
+    const clean = String(subject ?? '').trim()
+    if (!clean) return 0
+
+    const removed = questions.value.filter((question) => question.subject === clean).length
+    const { error: deleteError } = await supabase.from('questions').delete().eq('subject', clean)
+    if (deleteError) {
+      console.error('[KuisKita] Gagal menghapus soal materi:', deleteError)
+      throw new Error('Soal-soal materi belum berhasil dihapus. Silakan coba lagi.')
+    }
+    questions.value = questions.value.filter((question) => question.subject !== clean)
+    return removed
+  }
+
   function setQuestions(list) {
     questions.value = list ?? []
   }
@@ -260,6 +275,7 @@ export function useQuestions() {
     addQuestion,
     updateQuestion,
     deleteQuestion,
+    deleteQuestionsBySubject,
     setQuestions,
     uploadQuestionImage,
     deleteQuestionImage,

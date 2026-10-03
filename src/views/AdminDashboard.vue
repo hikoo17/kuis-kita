@@ -70,6 +70,7 @@ const {
   addQuestion,
   updateQuestion,
   deleteQuestion,
+  deleteQuestionsBySubject,
   uploadQuestionImage,
   deleteQuestionImage,
   imageColumnAvailable,
@@ -438,6 +439,11 @@ const subjectQuestions = computed(() =>
     if (question.subject !== activeSubject.value) return false
     return filterType.value === 'all' || question.type === filterType.value
   }),
+)
+
+/** Total soal materi ini (tanpa filter tipe) — untuk tombol hapus semua. */
+const activeSubjectTotal = computed(
+  () => questions.value.filter((question) => question.subject === activeSubject.value).length,
 )
 
 // ------------------------------------------------------------ subjects -----
@@ -823,6 +829,31 @@ function handleDeleteQuestion(question) {
       if (question.image_url) deleteQuestionImage(question.image_url)
       if (editingId.value === question.id) resetForm()
       showToast('Soal berhasil dihapus.')
+    },
+  )
+}
+
+/** Hapus seluruh soal pada materi yang sedang dibuka (beserta gambarnya). */
+function handleDeleteAllQuestions() {
+  const count = activeSubjectTotal.value
+  if (count === 0) return
+
+  askConfirm(
+    {
+      title: 'Hapus Semua Soal?',
+      message: `Semua ${count} soal pada materi "${activeSubject.value}" akan dihapus.\nTindakan ini tidak bisa dibatalkan.`,
+      confirmLabel: 'Hapus Semua',
+      variant: 'danger',
+    },
+    async () => {
+      const imageUrls = questions.value
+        .filter((question) => question.subject === activeSubject.value && question.image_url)
+        .map((question) => question.image_url)
+
+      const removed = await deleteQuestionsBySubject(activeSubject.value)
+      imageUrls.forEach((url) => deleteQuestionImage(url))
+      if (editingId.value) resetForm()
+      showToast(`${removed} soal berhasil dihapus.`)
     },
   )
 }
@@ -1592,11 +1623,11 @@ onMounted(async () => {
             <div class="grid w-full grid-cols-2 gap-2 sm:w-auto sm:flex sm:flex-wrap">
               <button
                 type="button"
-                class="btn-neutral !px-3 !py-2.5 !text-base"
+                class="btn-word !px-3 !py-2.5 !text-base"
                 @click="showImport = true"
               >
                 <FileUp :size="18" aria-hidden="true" />
-                Impor Word
+                Import Word
               </button>
               <button
                 v-if="!showQuestionForm"
@@ -1606,6 +1637,15 @@ onMounted(async () => {
               >
                 <Plus :size="20" aria-hidden="true" />
                 Tambah Soal
+              </button>
+              <button
+                v-if="activeSubjectTotal > 0"
+                type="button"
+                class="btn-danger col-span-2 !px-3 !py-2.5 !text-base sm:col-span-1"
+                @click="handleDeleteAllQuestions"
+              >
+                <Trash2 :size="18" aria-hidden="true" />
+                Hapus Semua Soal
               </button>
             </div>
           </div>

@@ -40,6 +40,16 @@
     @apply btn bg-red-500 text-white shadow-card hover:bg-red-600 active:scale-[0.98];
   }
 
+  /* Tombol impor Word: memakai biru khas Microsoft Word. */
+  .btn-word {
+    @apply btn text-white shadow-card active:scale-[0.98];
+    background-color: #185abd;
+  }
+
+  .btn-word:hover {
+    background-color: #124a95;
+  }
+
   .btn-ghost {
     @apply inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold
            text-slate-600 transition hover:bg-slate-100 hover:text-slate-900
