@@ -170,14 +170,14 @@ async function runImport() {
                 <FileUp :size="24" aria-hidden="true" />
               </span>
               <p class="mt-3 font-extrabold text-slate-800">
-                {{ fileName ? fileName : 'Pilih file .docx' }}
+                {{ fileName ? fileName : 'Pilih file Word (.docx)' }}
               </p>
               <p class="mt-1 text-sm text-slate-400">
-                Soal harus bernomor dengan pilihan A, B, C, … dan kunci jawaban (tabel atau "Jawaban: B").
+                Setiap soal cukup diberi nomor, pilihan jawaban A, B, C, …, dan kunci jawaban.
               </p>
               <label class="btn-primary mt-3 w-full !py-2.5 sm:w-auto" :class="{ 'pointer-events-none opacity-60': isParsing }">
                 <FileUp :size="18" aria-hidden="true" />
-                {{ isParsing ? 'Membaca...' : 'Pilih Berkas' }}
+                {{ isParsing ? 'Membaca...' : 'Pilih File Word' }}
                 <input
                   ref="fileInput"
                   type="file"
