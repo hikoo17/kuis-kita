@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { FileUp, Trash2, X } from '@lucide/vue'
 import MathText from '@/components/MathText.vue'
 import { extractDocxBlocks } from '@/lib/docxImport'
+import { extractPdfBlocks } from '@/lib/pdfImport'
 import { parseQuestions } from '@/lib/parseQuestions'
 import { useQuestions } from '@/composables/useQuestions'
 import { useModalFocus } from '@/composables/useModalFocus'
@@ -62,7 +63,8 @@ async function onFileChange(event) {
   isParsing.value = true
 
   try {
-    const blocks = await extractDocxBlocks(file)
+    const isPdf = /\.pdf$/i.test(file.name)
+    const blocks = isPdf ? await extractPdfBlocks(file) : await extractDocxBlocks(file)
     const parsed = parseQuestions(blocks)
     if (parsed.length === 0) {
       parseError.value = 'Tidak ada soal yang terbaca. Pastikan tiap soal bernomor dan pilihannya A, B, C, ...'
@@ -74,7 +76,7 @@ async function onFileChange(event) {
       options: item.options.map((option) => ({ ...option })),
     }))
   } catch (err) {
-    parseError.value = err.message || 'Gagal membaca file. Pastikan file .docx yang benar.'
+    parseError.value = err.message || 'Gagal membaca file. Pastikan file .docx atau .pdf yang benar.'
   } finally {
     isParsing.value = false
   }
@@ -144,7 +146,7 @@ async function runImport() {
           <!-- Kepala -->
           <div class="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4 sm:rounded-t-3xl">
             <div class="min-w-0">
-              <h2 id="import-title" class="text-lg font-extrabold text-slate-900 sm:text-xl">Impor Soal dari Word</h2>
+              <h2 id="import-title" class="text-lg font-extrabold text-slate-900 sm:text-xl">Impor Soal</h2>
               <p class="mt-0.5 truncate text-sm text-slate-500">
                 Materi: <span class="font-bold text-brand-700">{{ subject }}</span>
               </p>
@@ -170,10 +172,11 @@ async function runImport() {
                 <FileUp :size="24" aria-hidden="true" />
               </span>
               <p class="mt-3 font-extrabold text-slate-800">
-                {{ fileName ? fileName : 'Pilih file .docx' }}
+                {{ fileName ? fileName : 'Pilih file .docx atau .pdf' }}
               </p>
               <p class="mt-1 text-sm text-slate-400">
                 Soal harus bernomor dengan pilihan A, B, C, … dan kunci jawaban (tabel atau "Jawaban: B").
+                Rumus di PDF terbaca sebagai teks biasa — bisa dilengkapi lewat tombol Sisipkan Rumus.
               </p>
               <label class="btn-primary mt-3 w-full !py-2.5 sm:w-auto" :class="{ 'pointer-events-none opacity-60': isParsing }">
                 <FileUp :size="18" aria-hidden="true" />
@@ -181,7 +184,7 @@ async function runImport() {
                 <input
                   ref="fileInput"
                   type="file"
-                  accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  accept=".docx,.pdf,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                   class="hidden"
                   :disabled="isParsing"
                   @change="onFileChange"

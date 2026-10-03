@@ -8,6 +8,8 @@
 
 const OPTION_RE = /^\s*([A-Ea-e])\s*[.)\]]\s+(.+)$/
 const INLINE_KEY_RE = /^\s*(?:jawaban|kunci)\s*[:=]\s*([A-Ea-e])\b/i
+const KEY_SECTION_RE = /\b(kunci jawaban|pembahasan)\b/i
+const KEY_PAIR_RE = /^\s*(\d+)\s*[.)]?\s*([A-Ea-e])\s*$/
 const NUMBER_PREFIX_RE = /^\s*(?:soal\s*)?\d+\s*[.)\]]\s*/i
 const TAG_PREFIX_RE = /^\s*\[[^\]]*\]\s*/
 const BOILERPLATE_RE =
@@ -23,9 +25,15 @@ export function normalizeQuestionText(text) {
 
 /** Baris petunjuk/identitas yang bukan bagian dari soal. */
 function isBoilerplate(line) {
-  if (BOILERPLATE_RE.test(line)) return true
-  if (/_{3,}/.test(line)) return true
-  return /\b(kunci jawaban|pembahasan)\b/i.test(line)
+  return BOILERPLATE_RE.test(line) || /_{3,}/.test(line)
+}
+
+/** Judul yang ditulis kapital semua (mis. "UJI PEMAHAMAN MATEMATIKA"). */
+function isHeading(line) {
+  if (line.length > 90) return false
+  const letters = line.replace(/[^A-Za-z]/g, '')
+  if (letters.length < 6) return false
+  return letters === letters.toUpperCase()
 }
 
 /** Tabel "KUNCI JAWABAN" → { 1: 'B', 2: 'A', ... } */
@@ -53,6 +61,9 @@ export function parseQuestions(blocks) {
   const raw = []
 
   let current = null
+  let started = false
+  let keyMode = false
+
   const finalize = () => {
     if (current && (current.text || current.options.length > 0)) raw.push(current)
     current = null
@@ -60,7 +71,21 @@ export function parseQuestions(blocks) {
 
   for (const value of paragraphs) {
     const line = String(value ?? '').trim()
-    if (!line || isBoilerplate(line)) continue
+    if (!line) continue
+
+    // Bagian "KUNCI JAWABAN": baris berikutnya ("1. B") jadi kunci, bukan soal.
+    if (KEY_SECTION_RE.test(line)) {
+      keyMode = true
+      continue
+    }
+    if (keyMode) {
+      const pair = line.match(KEY_PAIR_RE)
+      if (pair) keys[parseInt(pair[1], 10)] = pair[2].toUpperCase()
+      continue
+    }
+
+    if (isBoilerplate(line)) continue
+    if (!started && isHeading(line)) continue
 
     const option = line.match(OPTION_RE)
     if (option && current) {
@@ -77,6 +102,7 @@ export function parseQuestions(blocks) {
     // Paragraf isi baru → soal sebelumnya sudah selesai.
     if (current && current.options.length > 0) finalize()
     if (!current) current = { text: '', options: [], correctAnswer: '' }
+    started = true
 
     const clean = normalizeQuestionText(line)
     current.text = current.text ? `${current.text} ${clean}` : clean

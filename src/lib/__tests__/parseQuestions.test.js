@@ -66,4 +66,19 @@ describe('parseQuestions', () => {
     expect(mixed[1].type).toBe('short_answer')
     expect(mixed[1].options).toEqual([])
   })
+
+  it('membuang judul kapital dan membaca kunci dari bagian KUNCI JAWABAN', () => {
+    const pdfLike = parseQuestions([
+      { type: 'p', text: 'UJI PEMAHAMAN MATEMATIKA: MATRIKS' },
+      { type: 'p', text: '1. Susunan bilangan dalam baris dan kolom disebut ...' },
+      { type: 'p', text: 'A. Vektor' },
+      { type: 'p', text: 'B. Matriks' },
+      { type: 'p', text: 'KUNCI JAWABAN' },
+      { type: 'p', text: '1. B' },
+      { type: 'p', text: '2. A' },
+    ])
+    expect(pdfLike).toHaveLength(1)
+    expect(pdfLike[0].text).toBe('Susunan bilangan dalam baris dan kolom disebut ...')
+    expect(pdfLike[0].correctAnswer).toBe('B')
+  })
 })
