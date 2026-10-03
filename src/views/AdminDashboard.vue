@@ -1159,13 +1159,12 @@ onMounted(async () => {
                 </span>
                 <button
                   type="button"
-                  class="btn-neutral whitespace-nowrap !px-3.5 !py-2 !text-sm"
+                  class="icon-btn-brand"
                   :title="`Ubah nama kelas ${item.name}`"
                   :aria-label="`Ubah nama kelas ${item.name}`"
                   @click="startRenameClass(item, $event)"
                 >
-                  <Pencil :size="16" aria-hidden="true" />
-                  Edit
+                  <Pencil :size="18" aria-hidden="true" />
                 </button>
                 <button
                   type="button"
