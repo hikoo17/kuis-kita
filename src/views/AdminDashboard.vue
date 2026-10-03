@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import {
   Archive,
   ArrowLeft,
@@ -7,6 +7,7 @@ import {
   ChevronUp,
   Download,
   FileText,
+  FileUp,
   ImagePlus,
   Music,
   Pencil,
@@ -31,9 +32,14 @@ import { useClasses } from '@/composables/useClasses'
 import { useSubjectScores } from '@/composables/useSubjectScores'
 import { useQuizSessions } from '@/composables/useQuizSessions'
 import ConfirmModal from '@/components/ConfirmModal.vue'
-import MatrixText from '@/components/MatrixText.vue'
+import MathText from '@/components/MathText.vue'
 import InfoButton from '@/components/InfoButton.vue'
 import InfoModal from '@/components/InfoModal.vue'
+
+// Wizard impor berat (JSZip + pembaca docx) dimuat hanya saat dipakai.
+const ImportQuestionsModal = defineAsyncComponent(
+  () => import('@/components/ImportQuestionsModal.vue'),
+)
 import { downloadCsv, datedFilename } from '@/lib/exportCsv'
 
 const { play } = useSound()
@@ -526,6 +532,47 @@ const imagesToDelete = ref([]) // dihapus hanya setelah penyimpanan berhasil
 const isImageDragging = ref(false)
 
 const imagePreview = computed(() => imagePreviewUrl.value || form.image_url || '')
+
+// --- Impor soal dari Word + sisip rumus cepat ---
+const showImport = ref(false)
+const questionTextarea = ref(null)
+const mathTools = [
+  {
+    label: 'Matriks 2×2',
+    title: 'Sisipkan matriks 2×2',
+    snippet: '$\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}$',
+  },
+  {
+    label: 'Matriks 3×3',
+    title: 'Sisipkan matriks 3×3',
+    snippet: '$\\begin{pmatrix} a & b & c \\\\ d & e & f \\\\ g & h & i \\end{pmatrix}$',
+  },
+  { label: 'Pecahan', title: 'Sisipkan pecahan', snippet: '$\\frac{a}{b}$' },
+  { label: 'Pangkat', title: 'Sisipkan pangkat', snippet: '$x^{2}$' },
+  { label: 'Akar', title: 'Sisipkan akar', snippet: '$\\sqrt{x}$' },
+]
+
+/** Sisipkan potongan LaTeX di posisi kursor pada kolom pertanyaan. */
+function insertQuestionSnippet(snippet) {
+  const el = questionTextarea.value
+  if (!el) {
+    form.question_text = `${form.question_text}${snippet}`
+    return
+  }
+  const start = el.selectionStart ?? form.question_text.length
+  const end = el.selectionEnd ?? start
+  form.question_text = `${form.question_text.slice(0, start)}${snippet}${form.question_text.slice(end)}`
+  nextTick(() => {
+    el.focus()
+    const cursor = start + snippet.length
+    el.setSelectionRange(cursor, cursor)
+  })
+}
+
+function onImported(count) {
+  showImport.value = false
+  showToast(`${count} soal berhasil diimpor.`)
+}
 
 const isMultipleChoiceForm = computed(() => form.type === 'multiple_choice')
 const availableLabels = computed(() => form.options.map((option) => option.label))
@@ -1517,15 +1564,25 @@ onMounted(async () => {
               <p class="mt-1 text-slate-500">{{ subjectQuestions.length }} soal pada materi ini</p>
             </div>
 
-            <button
-              v-if="!showQuestionForm"
-              type="button"
-              class="btn-primary"
-              @click="startAddQuestion"
-            >
-              <Plus :size="20" aria-hidden="true" />
-              Tambah Soal
-            </button>
+            <div class="flex flex-wrap gap-2">
+              <button
+                type="button"
+                class="btn-neutral !px-4 !py-2.5 !text-base"
+                @click="showImport = true"
+              >
+                <FileUp :size="18" aria-hidden="true" />
+                Impor Word
+              </button>
+              <button
+                v-if="!showQuestionForm"
+                type="button"
+                class="btn-primary"
+                @click="startAddQuestion"
+              >
+                <Plus :size="20" aria-hidden="true" />
+                Tambah Soal
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1560,12 +1617,30 @@ onMounted(async () => {
 
             <div>
               <label class="label" for="q-text">Pertanyaan</label>
+              <div class="mb-2 flex flex-wrap gap-1.5">
+                <button
+                  v-for="tool in mathTools"
+                  :key="tool.label"
+                  type="button"
+                  class="rounded-lg bg-slate-100 px-2.5 py-1.5 text-sm font-bold text-slate-600 transition hover:bg-brand-50 hover:text-brand-700"
+                  :title="tool.title"
+                  @click="insertQuestionSnippet(tool.snippet)"
+                >
+                  {{ tool.label }}
+                </button>
+              </div>
               <textarea
                 id="q-text"
+                ref="questionTextarea"
                 v-model="form.question_text"
                 class="input min-h-[7rem] leading-relaxed"
-                placeholder="Tulis pertanyaan di sini..."
+                placeholder="Tulis pertanyaan di sini... Boleh pakai $...$ untuk rumus."
               />
+              <p class="mt-1.5 text-xs text-slate-400">
+                Rumus ditulis dengan LaTeX di antara <span class="font-bold">$...$</span>, contoh
+                <span class="font-bold">$\frac{a}{b}$</span> atau matriks
+                <span class="font-bold">$\begin{pmatrix}1 & 2 \\ 3 & 4\end{pmatrix}$</span>.
+              </p>
             </div>
 
             <div>
@@ -1729,7 +1804,7 @@ onMounted(async () => {
                 <span class="chip bg-emerald-100 text-emerald-700">Kunci: {{ question.correct_answer }}</span>
               </div>
 
-              <MatrixText class="mt-3 block font-bold text-slate-800" :text="question.question_text" />
+              <MathText class="mt-3 block font-bold text-slate-800" :text="question.question_text" />
 
               <img
                 v-if="question.image_url"
@@ -2070,6 +2145,14 @@ onMounted(async () => {
       :is-loading="confirmState.loading"
       @confirm="runConfirm"
       @cancel="cancelConfirm"
+    />
+
+    <ImportQuestionsModal
+      v-if="showImport"
+      :open="showImport"
+      :subject="activeSubject"
+      @close="showImport = false"
+      @imported="onImported"
     />
 
     <InfoModal

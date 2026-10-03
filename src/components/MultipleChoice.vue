@@ -1,5 +1,6 @@
 <script setup>
 import { Check, X } from '@lucide/vue'
+import MathText from '@/components/MathText.vue'
 
 const props = defineProps({
   options: { type: Array, default: () => [] },
@@ -71,8 +72,8 @@ function labelClasses(option) {
       >
         {{ option.label }}
       </span>
-      <span class="text-base font-bold leading-snug text-slate-800 sm:text-lg preserve-lines">
-        {{ option.text }}
+      <span class="text-base font-bold leading-snug text-slate-800 sm:text-lg">
+        <MathText :text="option.text" />
       </span>
 
       <!-- Penanda benar/salah, hanya pada pilihan yang dipilih. -->

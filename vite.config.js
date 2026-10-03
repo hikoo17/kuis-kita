@@ -9,6 +9,16 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // KaTeX cukup besar dan jarang berubah: pisahkan agar cache-nya awet.
+        manualChunks: {
+          katex: ['katex'],
+        },
+      },
+    },
+  },
   server: {
     port: 5173,
   },

@@ -137,7 +137,8 @@ src/
 │   ├── ClassSelector.vue       # kartu pilih kelas
 │   ├── SubjectSelector.vue     # kartu pilih materi
 │   ├── QuestionCard.vue        # wadah teks soal + gambar soal
-│   ├── MatrixText.vue          # menampilkan matriks bertumpuk dari teks soal
+│   ├── MathText.vue            # render rumus LaTeX (KaTeX) + matriks
+│   ├── ImportQuestionsModal.vue# wizard impor soal dari .docx
 │   ├── MultipleChoice.vue      # tombol pilihan A, B, C, D, ... (bisa lebih dari 4)
 │   ├── ShortAnswer.vue         # input jawaban singkat
 │   ├── AnswerFeedback.vue      # overlay Benar! / Belum Tepat!
@@ -167,7 +168,10 @@ src/
 │   ├── useConfirm.js           # dialog konfirmasi (mis. keluar di tengah kuis)
 │   └── useAdminAuth.js         # sesi login guru
 ├── lib/
-│   ├── matrixText.js           # memecah teks soal + matriks untuk ditampilkan
+│   ├── mathText.js             # pecah teks + rumus/matriks untuk dirender
+│   ├── omml.js                 # rumus Word (OMML) → LaTeX
+│   ├── docxImport.js           # baca isi file .docx di browser
+│   ├── parseQuestions.js       # susun soal dari isi dokumen
 │   └── supabaseClient.js
 ├── router/
 │   └── index.js
@@ -265,16 +269,32 @@ TINGKAT 2 — soal di dalam materi itu (+ form Tambah Soal)
 > dipakai soal lama akan diisi otomatis). Selama migrasi belum dijalankan, aplikasi tetap jalan
 > dengan daftar materi turunan dari soal — hanya tambah/edit/hapus materi yang nonaktif.
 
-### Menulis matriks pada soal
+### Menulis matriks & rumus (KaTeX)
 
-Ada dua cara menampilkan matriks pada soal:
+Teks soal mendukung **LaTeX** yang digambar dengan **KaTeX**, jadi matriks/pecahan/akar tampil rapi:
 
-1. **Lampirkan gambar** (dipakai soal Matriks saat ini) — buat gambar matriks (mis. `P = [ ... ]`),
-   lalu unggah lewat kolom **Gambar Soal** di form soal. Gambar tampil di bawah pertanyaan.
-2. **Tulis notasi** `[[1, 4, 7], [2, 5, 8]]` di teks soal — aplikasi otomatis merendernya menjadi
-   matriks bertumpuk lengkap dengan tanda kurung, baik saat kuis maupun di daftar soal.
+- Rumus inline: `$x^2$`, `$\frac{a}{b}$`, `$\sqrt{x}$`
+- Rumus blok: `$$...$$`
+- Jalan pintas matriks: `[[1, 4], [2, 5]]` → otomatis jadi matriks bertumpuk
+- Matriks LaTeX: `$\begin{pmatrix}1 & 2 \\ 3 & 4\end{pmatrix}$`
 
-Keduanya membuat siswa tidak bingung membaca deretan angka.
+Di form soal ada tombol bantu (**Matriks 2×2**, **Matriks 3×3**, **Pecahan**, **Pangkat**, **Akar**)
+yang menyisipkan kerangka rumus di posisi kursor — tidak perlu hafal LaTeX.
+
+Matriks juga masih bisa **dilampirkan sebagai gambar** lewat kolom Gambar Soal.
+
+### Impor soal dari Word (.docx)
+
+Di tiap materi ada tombol **Impor Word**: pilih file `.docx`, aplikasi membacanya di browser
+(file tidak diunggah ke server), lalu menampilkan **pratinjau soal yang bisa diedit** sebelum
+disimpan. Jadi input manual tinggal untuk tambahan saja.
+
+- Soal dideteksi dari penomoran + pilihan `A.`, `B.`, `C.`, …; tanpa pilihan → otomatis isian singkat.
+- **Kunci jawaban** dibaca dari tabel "KUNCI JAWABAN" di dokumen (atau baris `Jawaban: B`).
+- **Rumus Word (Equation Editor)** diubah otomatis jadi LaTeX — termasuk **matriks**, yang muncul
+  rapi lewat KaTeX tanpa perlu gambar.
+- Hanya format `.docx` (bukan `.doc`/PDF). Hasil bergantung kerapian format sumber; selalu cek
+  pratinjau sebelum menekan **Impor**.
 
 ### Gambar soal
 
