@@ -1707,11 +1707,10 @@ onMounted(async () => {
                 id="q-text"
                 v-model="form.question_text"
                 class="input min-h-[7rem] leading-relaxed"
-                placeholder="Tulis pertanyaan di sini... Boleh pakai $...$ untuk rumus."
+                placeholder="Tulis pertanyaan di sini..."
                 @focus="onFieldFocus('question', $event)"
               />
               <div class="mt-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <p class="mb-1 text-xs font-extrabold uppercase tracking-wide text-slate-400">Pratinjau</p>
                 <div class="text-lg text-slate-800">
                   <MathText v-if="form.question_text.trim()" :text="form.question_text" />
                   <span v-else class="text-slate-400">Pratinjau soal muncul di sini.</span>

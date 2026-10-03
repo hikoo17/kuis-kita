@@ -1,7 +1,8 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
-import { FileUp, Trash2, X } from '@lucide/vue'
+import { computed, nextTick, ref, watch } from 'vue'
+import { FileUp, Sigma, Trash2, X } from '@lucide/vue'
 import MathText from '@/components/MathText.vue'
+import FormulaModal from '@/components/FormulaModal.vue'
 import { extractDocxBlocks } from '@/lib/docxImport'
 import { parseQuestions } from '@/lib/parseQuestions'
 import { useQuestions } from '@/composables/useQuestions'
@@ -23,6 +24,59 @@ const isParsing = ref(false)
 const parseError = ref('')
 const items = ref([])
 const isImporting = ref(false)
+
+// Sisip rumus ke kartu pratinjau: target + elemen kolom dicatat agar
+// rumus masuk di posisi kursor yang benar.
+const showFormula = ref(false)
+const formulaTarget = ref({ index: 0, field: 'text' })
+const fieldRefs = new Map()
+
+function setFieldRef(index, field, node) {
+  const key = `${index}:${field}`
+  if (node) fieldRefs.set(key, node)
+  else fieldRefs.delete(key)
+}
+
+function openFormula(index, field) {
+  formulaTarget.value = { index, field }
+  showFormula.value = true
+}
+
+function insertFormula(latex) {
+  const token = `$${latex}$`
+  const { index, field } = formulaTarget.value
+  const item = items.value[index]
+  if (!item) return
+
+  const getValue = () =>
+    field === 'text'
+      ? item.text
+      : (item.options.find((option) => option.label === field)?.text ?? '')
+  const setValue = (value) => {
+    if (field === 'text') item.text = value
+    else {
+      const option = item.options.find((item) => item.label === field)
+      if (option) option.text = value
+    }
+  }
+
+  const current = getValue()
+  const element = fieldRefs.get(`${index}:${field}`) ?? null
+  if (!element || typeof element.selectionStart !== 'number') {
+    setValue(`${current}${token}`)
+    return
+  }
+
+  const start = element.selectionStart ?? current.length
+  const end = element.selectionEnd ?? start
+  setValue(`${current.slice(0, start)}${token}${current.slice(end)}`)
+
+  nextTick(() => {
+    element.focus()
+    const cursor = start + token.length
+    element.setSelectionRange(cursor, cursor)
+  })
+}
 
 useModalFocus(
   () => props.open,
@@ -205,8 +259,8 @@ async function runImport() {
 
             <!-- Langkah 2: pratinjau -->
             <div v-if="items.length > 0" class="mt-5">
-              <p class="text-sm font-extrabold uppercase tracking-wide text-slate-500">
-                Pratinjau — {{ selectedCount }} dari {{ items.length }} soal dipilih
+              <p class="text-sm font-bold text-slate-500">
+                Periksa hasil — {{ selectedCount }} dari {{ items.length }} soal dipilih
               </p>
 
               <ul class="mt-3 space-y-4">
@@ -248,8 +302,19 @@ async function runImport() {
                         rows="2"
                         class="input mt-2 min-h-[3.5rem] !text-base"
                         aria-label="Teks soal"
+                        :ref="(node) => setFieldRef(index, 'text', node)"
                       />
-                      <div class="mt-1 rounded-xl bg-slate-50 px-3 py-2 text-slate-700">
+                      <div class="mt-1 flex items-center justify-between gap-2">
+                        <button
+                          type="button"
+                          class="btn-ghost !px-2 !py-1 !text-sm !text-brand-600"
+                          @click="openFormula(index, 'text')"
+                        >
+                          <Sigma :size="14" aria-hidden="true" />
+                          Rumus
+                        </button>
+                      </div>
+                      <div class="rounded-xl bg-slate-50 px-3 py-2 text-slate-700">
                         <MathText :text="item.text" />
                       </div>
 
@@ -258,7 +323,22 @@ async function runImport() {
                           <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-sm font-extrabold text-brand-700">
                             {{ option.label }}
                           </span>
-                          <input v-model="option.text" type="text" class="input !py-2 !text-base" :aria-label="`Pilihan ${option.label}`" />
+                          <input
+                            v-model="option.text"
+                            type="text"
+                            class="input !py-2 !text-base"
+                            :aria-label="`Pilihan ${option.label}`"
+                            :ref="(node) => setFieldRef(index, option.label, node)"
+                          />
+                          <button
+                            type="button"
+                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 transition hover:bg-brand-50 hover:text-brand-700"
+                            :title="`Sisipkan rumus ke pilihan ${option.label}`"
+                            :aria-label="`Sisipkan rumus ke pilihan ${option.label}`"
+                            @click="openFormula(index, option.label)"
+                          >
+                            <Sigma :size="16" aria-hidden="true" />
+                          </button>
                         </div>
                       </div>
 
@@ -310,6 +390,8 @@ async function runImport() {
               {{ isImporting ? 'Menyimpan...' : `Import ${selectedCount} Soal` }}
             </button>
           </div>
+
+          <FormulaModal :open="showFormula" @close="showFormula = false" @insert="insertFormula" />
         </div>
       </div>
     </Transition>
