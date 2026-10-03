@@ -1851,8 +1851,8 @@ onMounted(async () => {
                   <span class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-50 text-brand-500">
                     <ImagePlus :size="28" aria-hidden="true" />
                   </span>
-                  <p class="mt-3 font-extrabold text-slate-700">Tarik & letakkan gambar soal di sini</p>
-                  <p class="mt-1 text-sm text-slate-400">atau pilih dari perangkat</p>
+                  <p class="mt-3 font-extrabold text-slate-700">Unggah Gambar Soal</p>
+                  <p class="mt-1 text-sm text-slate-400">Tarik file ke sini atau pilih dari perangkat</p>
                 </template>
 
                 <div :class="imagePreview ? 'mt-4' : 'mt-3'">
@@ -1875,7 +1875,7 @@ onMounted(async () => {
                       @change="onImageSelect"
                     />
                   </label>
-                  <p class="mt-2.5 text-xs font-semibold text-slate-400">JPG / PNG / WebP · maks 5 MB</p>
+                  <p class="mt-2.5 text-xs font-semibold text-slate-400">JPG, PNG, atau WebP (Maks. 5 MB)</p>
                 </div>
               </div>
             </div>
