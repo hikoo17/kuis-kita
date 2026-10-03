@@ -139,7 +139,7 @@ src/
 │   ├── QuestionCard.vue        # wadah teks soal + gambar soal
 │   ├── MathText.vue            # render rumus LaTeX (KaTeX) + matriks
 │   ├── FormulaModal.vue        # dialog sisip rumus (matriks/pecahan/pangkat/akar)
-│   ├── ImportQuestionsModal.vue# wizard impor soal dari .docx / .pdf
+│   ├── ImportQuestionsModal.vue# wizard impor soal dari .docx
 │   ├── MultipleChoice.vue      # tombol pilihan A, B, C, D, ... (bisa lebih dari 4)
 │   ├── ShortAnswer.vue         # input jawaban singkat
 │   ├── AnswerFeedback.vue      # overlay Benar! / Belum Tepat!
@@ -172,8 +172,6 @@ src/
 │   ├── mathText.js             # pecah teks + rumus/matriks untuk dirender
 │   ├── omml.js                 # rumus Word (OMML) → LaTeX
 │   ├── docxImport.js           # baca isi file .docx di browser
-│   ├── pdfText.js              # susun potongan teks pdf.js jadi baris
-│   ├── pdfImport.js            # baca isi file .pdf di browser (pdf.js)
 │   ├── parseQuestions.js       # susun soal dari isi dokumen
 │   └── supabaseClient.js
 ├── router/
@@ -290,20 +288,17 @@ pilihan jawaban yang memuat rumus.
 
 Matriks juga masih bisa **dilampirkan sebagai gambar** lewat kolom Gambar Soal.
 
-### Impor soal dari Word atau PDF
+### Impor soal dari Word (.docx)
 
-Di tiap materi ada tombol **Import Word**: pilih file `.docx` **atau `.pdf`**, aplikasi membacanya
-di browser (file tidak diunggah ke server), lalu menampilkan **pratinjau soal yang bisa diedit**
-sebelum disimpan. Jadi input manual tinggal untuk tambahan saja.
+Di tiap materi ada tombol **Import Word**: pilih file `.docx`, aplikasi membacanya di browser
+(file tidak diunggah ke server), lalu menampilkan **pratinjau soal yang bisa diedit** sebelum
+disimpan. Jadi input manual tinggal untuk tambahan saja.
 
 - Soal dideteksi dari penomoran + pilihan `A.`, `B.`, `C.`, …; tanpa pilihan → otomatis isian singkat.
-- **Kunci jawaban** dibaca dari tabel "KUNCI JAWABAN" (Word) atau dari bagian "KUNCI JAWABAN"
-  bertuliskan `1. B` (PDF), atau baris `Jawaban: B`.
-- **Word (.docx)**: rumus Equation Editor diubah otomatis jadi LaTeX — termasuk **matriks**,
-  sehingga muncul rapi lewat KaTeX tanpa perlu gambar.
-- **PDF**: teks dibaca apa adanya (PDF tidak menyimpan struktur), jadi **rumus terbaca sebagai teks
-  biasa** dan perlu dilengkapi lewat tombol **Sisipkan Rumus** di pratinjau. Untuk soal yang banyak
-  rumus, file `.docx` aslinya jauh lebih akurat.
+- **Kunci jawaban** dibaca dari tabel "KUNCI JAWABAN" (atau bagian `1. B` / baris `Jawaban: B`).
+- **Rumus Equation Editor** diubah otomatis jadi LaTeX — termasuk **matriks**, sehingga muncul rapi
+  lewat KaTeX tanpa perlu gambar. (Karena itu format ini yang dipakai — bukan PDF, yang tidak
+  menyimpan struktur rumus.)
 - Selalu cek pratinjau sebelum menekan **Impor**.
 
 ### Gambar soal
