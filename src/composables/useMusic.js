@@ -46,7 +46,7 @@ const TRACKS = {
   },
 }
 
-const MAX_LEVEL = 0.55
+const MAX_LEVEL = 0.8
 
 let bus = null
 let timer = null
@@ -64,7 +64,7 @@ function trackConfig(name) {
 
 function levelFor(volume) {
   const value = Number(volume)
-  const safe = Number.isFinite(value) ? value : 45
+  const safe = Number.isFinite(value) ? value : 80
   return Math.max(0, Math.min(1, safe / 100)) * MAX_LEVEL
 }
 
