@@ -4,7 +4,7 @@ import { ArrowLeft } from '@lucide/vue'
 
 import { useQuiz, isAnswering, resolveTimeLimit } from '@/composables/useQuiz'
 import { useStudents } from '@/composables/useStudents'
-import { useQuestions, ALL_SUBJECTS } from '@/composables/useQuestions'
+import { useQuestions } from '@/composables/useQuestions'
 import { useSubjects } from '@/composables/useSubjects'
 import { useSubjectScores } from '@/composables/useSubjectScores'
 import { useClasses } from '@/composables/useClasses'
@@ -79,13 +79,9 @@ const { settings } = useSettings()
 const { play } = useSound()
 const { start: startMusic, stop: stopMusic } = useMusic()
 
-// Sidebar board follows the class and material being played
-// ('all' shows totals when "Semua Materi" is picked).
+// Sidebar board follows the class and material being played.
 const sideLeaderboard = computed(() =>
-  leaderboardFor(
-    selectedSubject.value === ALL_SUBJECTS ? 'all' : selectedSubject.value,
-    selectedClass.value?.id ?? null,
-  ).value,
+  leaderboardFor(selectedSubject.value, selectedClass.value?.id ?? null).value,
 )
 
 // Only students of the picked class can answer.
@@ -142,9 +138,7 @@ const currentStudent = computed(() => {
   return students.value.find((student) => student.id === id) ?? selectedStudent.value
 })
 
-const subjectLabel = computed(() =>
-  selectedSubject.value === ALL_SUBJECTS ? 'Semua Materi' : selectedSubject.value,
-)
+const subjectLabel = computed(() => selectedSubject.value)
 
 const progressBarPercent = computed(() => {
   if (totalQuestions.value === 0) return 0
@@ -401,11 +395,6 @@ function onQuizKeydown(event) {
   }
 
   if (stage.value === 'subject') {
-    if (key === '0' || key.toLowerCase() === 'a') {
-      event.preventDefault()
-      onSelectSubject(ALL_SUBJECTS)
-      return
-    }
     pickByNumber(playableSubjects.value, onSelectSubject)
     return
   }

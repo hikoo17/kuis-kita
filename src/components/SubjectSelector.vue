@@ -1,6 +1,5 @@
 <script setup>
 import { ArrowLeft } from '@lucide/vue'
-import { ALL_SUBJECTS } from '@/composables/useQuestions'
 
 defineProps({
   subjects: { type: Array, default: () => [] },
@@ -19,21 +18,25 @@ function emojiFor(index) {
 
 <template>
   <section class="animate-fade-in">
-    <div class="mx-auto max-w-3xl">
+    <!-- Header: tombol Kembali di kiri, judul tetap center. -->
+    <div class="mx-auto flex max-w-3xl items-center gap-3">
       <button
         type="button"
-        class="btn-neutral !px-4 !py-2 !text-base shadow-card ring-0 hover:shadow-card-hover"
+        class="btn-neutral shrink-0 !px-3.5 !py-2 !text-base !shadow-none !ring-0 hover:bg-slate-100"
         title="Kembali untuk ganti kelas"
         @click="emit('back')"
       >
         <ArrowLeft :size="18" aria-hidden="true" />
         Kembali
       </button>
-    </div>
 
-    <div class="mt-4 text-center">
-      <h2 class="text-3xl font-extrabold text-slate-900 sm:text-4xl">Pilih Materi</h2>
-      <p class="mt-2 text-lg text-slate-500">Materi mana yang mau kita kerjakan?</p>
+      <div class="min-w-0 flex-1 text-center">
+        <h2 class="text-2xl font-extrabold text-slate-900 sm:text-4xl">Pilih Materi</h2>
+        <p class="mt-1 text-base text-slate-500 sm:text-lg">Materi mana yang mau kita kerjakan?</p>
+      </div>
+
+      <!-- Penyeimbang lebar tombol agar judul benar-benar center di layar lebar. -->
+      <span class="hidden w-[108px] shrink-0 sm:block" aria-hidden="true"></span>
     </div>
 
     <div v-if="error" class="mx-auto mt-8 max-w-xl rounded-3xl bg-red-50 p-6 text-center ring-1 ring-red-200">
@@ -69,17 +72,6 @@ function emojiFor(index) {
         <span class="text-xl font-extrabold text-slate-800 group-hover:text-brand-700 sm:text-2xl">
           {{ subject }}
         </span>
-      </button>
-
-      <button
-        type="button"
-        class="group flex min-h-[6.5rem] items-center justify-center gap-3 rounded-3xl bg-brand-600 px-6 py-6
-               text-white shadow-card transition duration-200 hover:-translate-y-1 hover:bg-brand-700
-               hover:shadow-card-hover focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-300 active:scale-95"
-        @click="emit('select', ALL_SUBJECTS)"
-      >
-        <span class="text-3xl" aria-hidden="true">🎲</span>
-        <span class="text-xl font-extrabold sm:text-2xl">Semua Materi</span>
       </button>
     </div>
   </section>

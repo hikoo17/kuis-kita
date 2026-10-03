@@ -13,7 +13,7 @@ sedangkan kode, nama variabel, nama komponen, dan kolom database tetap Bahasa In
 
 - **Layar kuis untuk proyektor** — tipografi besar, tombol besar, mudah dibaca dari belakang kelas.
 - **Pilih Siswa** — kartu nama siswa dengan poin masing-masing.
-- **Pilih Materi** — daftar materi diambil otomatis dari tabel `questions`, plus opsi **Semua Materi**.
+- **Pilih Materi** — daftar materi diambil otomatis dari tabel `questions`.
 - **Pilihan Ganda & Isian Singkat** — pilihan ganda bisa berisi **lebih dari 4 pilihan** (A, B, C, D, E, ...)
   dan dipilih dengan klik; isian singkat dikirim dengan tombol **Enter**.
 - **Pemeriksaan jawaban yang toleran** — tidak membedakan huruf besar/kecil dan mengabaikan spasi di tepi

@@ -46,9 +46,11 @@ const TRACKS = {
   },
 }
 
-const MAX_LEVEL = 1.05
+// Level keluaran musik. Dinaikkan supaya terdengar lebih jelas di speaker kelas.
+const MAX_LEVEL = 1.5
 
 let bus = null
+let busCleanupTimer = null
 let timer = null
 let nextBarTime = 0
 let barIndex = 0
@@ -68,9 +70,7 @@ function levelFor(volume) {
   return Math.max(0, Math.min(1, safe / 100)) * MAX_LEVEL
 }
 
-function getBus(ctx) {
-  if (bus) return bus
-
+function createBus(ctx) {
   const gain = ctx.createGain()
   gain.gain.value = 0
 
@@ -84,6 +84,47 @@ function getBus(ctx) {
   gain.connect(filter).connect(ctx.destination)
   bus = gain
   return bus
+}
+
+function getBus(ctx) {
+  if (!bus) return createBus(ctx)
+  return bus
+}
+
+/**
+ * Putuskan bus sekarang juga. Dipakai saat memulai sesi baru supaya sisa nada
+ * dari track sebelumnya tidak ikut berbunyi dan bertabrakan dengan track baru.
+ */
+function destroyBus() {
+  if (busCleanupTimer) {
+    window.clearTimeout(busCleanupTimer)
+    busCleanupTimer = null
+  }
+  if (bus) {
+    try {
+      bus.disconnect()
+    } catch {
+      // Abaikan: bus mungkin sudah terputus.
+    }
+    bus = null
+  }
+}
+
+/** Jadwalkan pemutusan bus setelah fade-out selesai supaya resource dibebaskan. */
+function scheduleBusCleanup(delay) {
+  if (busCleanupTimer) window.clearTimeout(busCleanupTimer)
+  const dyingBus = bus
+  busCleanupTimer = window.setTimeout(() => {
+    if (bus === dyingBus && !playing) {
+      try {
+        dyingBus.disconnect()
+      } catch {
+        // Abaikan.
+      }
+      bus = null
+    }
+    busCleanupTimer = null
+  }, delay)
 }
 
 /** Short bell-like note for bass lines, stabs and melody. */
@@ -237,8 +278,13 @@ export function useMusic() {
     if (playing && currentTrack.value === name) return
 
     const cfg = trackConfig(name)
-    const gainNode = getBus(ctx)
     const now = ctx.currentTime
+
+    // Sesi baru (bukan sekadar ganti track): buang bus lama beserta nada yang
+    // masih terjadwal. Ini mencegah musik lama dan baru berbunyi bersamaan.
+    if (!playing) destroyBus()
+
+    const gainNode = getBus(ctx)
 
     // Fade in (or just re-target the volume if it is already running).
     gainNode.gain.cancelScheduledValues(now)
@@ -279,6 +325,8 @@ export function useMusic() {
       bus.gain.setValueAtTime(Math.max(bus.gain.value, 0.0001), now)
       // Fade out; notes already queued fade together with the bus.
       bus.gain.linearRampToValueAtTime(0.0001, now + 0.9)
+      // Putuskan bus setelah fade selesai supaya nada lama benar-benar berhenti.
+      scheduleBusCleanup(1100)
     }
   }
 
