@@ -531,18 +531,54 @@ const emptyForm = () => ({
   image_url: '',
 })
 
-const form = reactive(emptyForm())
-const editingId = ref('')
 const isSavingQuestion = ref(false)
 
-// Gambar soal: file yang baru dipilih (belum diunggah) + pratinjau lokal.
-const imageInput = ref(null)
-const imageFile = ref(null)
-const imagePreviewUrl = ref('')
-const imagesToDelete = ref([]) // dihapus hanya setelah penyimpanan berhasil
-const isImageDragging = ref(false)
+// --- Form soal multi-kartu dalam satu modal ---
+// Tiap kartu punya state sendiri supaya bisa tambah banyak soal sekaligus.
+let questionKey = 0
 
-const imagePreview = computed(() => imagePreviewUrl.value || form.image_url || '')
+function newQuestionState(subject) {
+  return {
+    key: ++questionKey,
+    editingId: '',
+    form: {
+      subject,
+      type: 'multiple_choice',
+      question_text: '',
+      options: [emptyOption('A'), emptyOption('B'), emptyOption('C'), emptyOption('D')],
+      correct_answer: '',
+      image_url: '',
+    },
+    imageFile: null,
+    previewUrl: '',
+    toDelete: [],
+    dragging: false,
+  }
+}
+
+const questionStates = ref([])
+const isEditMode = computed(
+  () => questionStates.value.length === 1 && !!questionStates.value[0]?.editingId,
+)
+
+// Elemen <input type=file> per kartu (gambar soal & gambar pilihan).
+const questionImageEls = new Map()
+const optionImageEls = new Map()
+const pendingOptionImage = ref({ key: 0, label: '' })
+
+function setQuestionImageRef(key, node) {
+  if (node) questionImageEls.set(key, node)
+  else questionImageEls.delete(key)
+}
+
+function setOptionImageRef(key, node) {
+  if (node) optionImageEls.set(key, node)
+  else optionImageEls.delete(key)
+}
+
+function questionPreview(state) {
+  return state.previewUrl || state.form.image_url || ''
+}
 
 // --- Impor soal dari Word ---
 const showImport = ref(false)
@@ -558,14 +594,11 @@ function onImported(count) {
   showToast(`${count} soal berhasil diimport.`)
 }
 
-const isMultipleChoiceForm = computed(() => form.type === 'multiple_choice')
-const availableLabels = computed(() => form.options.map((option) => option.label))
-
 /** Batas pilihan jawaban (mendukung lebih dari 4 pilihan). */
 const MAX_OPTIONS = 10
 
 /** Label berikutnya yang belum terpakai: A, B, C, ... */
-function nextOptionLabel() {
+function nextOptionLabel(form) {
   for (let code = 65; code <= 90; code += 1) {
     const label = String.fromCharCode(code)
     if (!form.options.some((option) => option.label === label)) return label
@@ -574,25 +607,27 @@ function nextOptionLabel() {
 }
 
 /** Tambah satu pilihan jawaban baru (E, F, ...). */
-function addOption() {
+function addOption(state) {
+  const form = state.form
   if (form.options.length >= MAX_OPTIONS) {
     showToast(`Maksimal ${MAX_OPTIONS} pilihan jawaban.`, 'error')
     return
   }
-  const label = nextOptionLabel()
+  const label = nextOptionLabel(form)
   if (!label) return
   form.options.push(emptyOption(label))
 }
 
 /** Hapus satu pilihan jawaban (sisakan minimal 2). */
-function removeOption(label) {
+function removeOption(state, label) {
+  const form = state.form
   if (form.options.length <= 2) {
     showToast('Minimal 2 pilihan jawaban.', 'error')
     return
   }
   const removed = form.options.find((option) => option.label === label)
   if (removed) {
-    if (removed.image) imagesToDelete.value.push(removed.image)
+    if (removed.image) state.toDelete.push(removed.image)
     if (removed.previewUrl) URL.revokeObjectURL(removed.previewUrl)
   }
   form.options = form.options.filter((option) => option.label !== label)
@@ -600,24 +635,24 @@ function removeOption(label) {
 }
 
 /** Bebaskan object URL pratinjau gambar pilihan. */
-function revokeOptionPreviews(list = form.options) {
-  list.forEach((option) => {
+function revokeOptionPreviews(list) {
+  ;(list ?? []).forEach((option) => {
     if (option.previewUrl) URL.revokeObjectURL(option.previewUrl)
   })
 }
 
-/** Bersihkan status gambar tanpa menyentuh berkas yang sudah tersimpan di server. */
-function clearImageState() {
-  if (imagePreviewUrl.value) URL.revokeObjectURL(imagePreviewUrl.value)
-  imageFile.value = null
-  imagePreviewUrl.value = ''
-  imagesToDelete.value = []
-  isImageDragging.value = false
-  if (imageInput.value) imageInput.value.value = ''
+/** Bersihkan status gambar satu kartu tanpa menyentuh berkas server. */
+function clearStateImage(state) {
+  if (state.previewUrl) URL.revokeObjectURL(state.previewUrl)
+  state.imageFile = null
+  state.previewUrl = ''
+  state.dragging = false
+  const input = questionImageEls.get(state.key)
+  if (input) input.value = ''
 }
 
-/** Validasi + terapkan satu berkas gambar ke form. Dipakai oleh input & drag-drop. */
-function acceptImageFile(file) {
+/** Validasi + terapkan satu berkas gambar ke kartu. Dipakai oleh input & drag-drop. */
+function acceptQuestionImage(state, file) {
   if (!file) return false
 
   if (!file.type.startsWith('image/')) {
@@ -630,51 +665,44 @@ function acceptImageFile(file) {
   }
 
   // Gambar lama yang tersimpan akan diganti → hapus setelah simpan sukses.
-  if (form.image_url) imagesToDelete.value.push(form.image_url)
-  if (imagePreviewUrl.value) URL.revokeObjectURL(imagePreviewUrl.value)
+  if (state.form.image_url) state.toDelete.push(state.form.image_url)
+  if (state.previewUrl) URL.revokeObjectURL(state.previewUrl)
 
-  imageFile.value = file
-  imagePreviewUrl.value = URL.createObjectURL(file)
-  form.image_url = ''
+  state.imageFile = file
+  state.previewUrl = URL.createObjectURL(file)
+  state.form.image_url = ''
   return true
 }
 
-function onImageSelect(event) {
-  const accepted = acceptImageFile(event.target.files?.[0])
+function onQuestionImageSelect(state, event) {
+  const accepted = acceptQuestionImage(state, event.target.files?.[0])
   if (!accepted) event.target.value = ''
 }
 
-function onImageDrop(event) {
-  isImageDragging.value = false
+function onQuestionImageDrop(state, event) {
+  state.dragging = false
   if (imageColumnAvailable.value === false) return
-  acceptImageFile(event.dataTransfer?.files?.[0])
+  acceptQuestionImage(state, event.dataTransfer?.files?.[0])
 }
 
-function onImageDragOver() {
-  if (imageColumnAvailable.value !== false) isImageDragging.value = true
+function onQuestionImageDragOver(state) {
+  if (imageColumnAvailable.value !== false) state.dragging = true
 }
 
-function onImageDragLeave(event) {
+function onQuestionImageDragLeave(state, event) {
   // Hanya lepas sorotan kalau kursor benar-benar keluar dari area drop.
-  if (!event.currentTarget.contains(event.relatedTarget)) isImageDragging.value = false
+  if (!event.currentTarget.contains(event.relatedTarget)) state.dragging = false
 }
 
-function removeImage() {
-  if (form.image_url) imagesToDelete.value.push(form.image_url)
-  clearImageState()
-  form.image_url = ''
+function removeQuestionImage(state) {
+  if (state.form.image_url) state.toDelete.push(state.form.image_url)
+  clearStateImage(state)
+  state.form.image_url = ''
 }
 
-// Gambar tiap pilihan jawaban: satu input berkas dipakai bersama.
-const optionImageInput = ref(null)
-const pendingImageLabel = ref('')
-
-function optionPreview(option) {
-  return option.previewUrl || option.image || ''
-}
-
-/** Terapkan berkas gambar ke satu pilihan (diunggah saat soal disimpan). */
-function acceptOptionImageFile(option, file) {
+// Gambar tiap pilihan jawaban: satu input berkas per kartu,
+// berkas diunggah saat soal disimpan.
+function acceptOptionImage(state, option, file) {
   if (!file) return false
 
   if (!file.type.startsWith('image/')) {
@@ -692,33 +720,44 @@ function acceptOptionImageFile(option, file) {
   return true
 }
 
-function pickOptionImage(label) {
-  pendingImageLabel.value = label
-  optionImageInput.value?.click()
+function optionPreview(option) {
+  return option.previewUrl || option.image || ''
 }
 
-function onOptionImageSelect(event) {
-  const option = form.options.find((item) => item.label === pendingImageLabel.value)
-  const accepted = option ? acceptOptionImageFile(option, event.target.files?.[0]) : false
+function pickOptionImage(state, label) {
+  pendingOptionImage.value = { key: state.key, label }
+  optionImageEls.get(state.key)?.click()
+}
+
+function onOptionImageSelect(state, event) {
+  const target = pendingOptionImage.value
+  const option =
+    target.key === state.key
+      ? state.form.options.find((item) => item.label === target.label)
+      : null
+  const accepted = option ? acceptOptionImage(state, option, event.target.files?.[0]) : false
   event.target.value = ''
-  if (!accepted) pendingImageLabel.value = ''
+  if (!accepted) pendingOptionImage.value = { key: 0, label: '' }
 }
 
 /** Hapus gambar satu pilihan (berkas server dihapus setelah simpan sukses). */
-function removeOptionImage(option) {
-  if (option.image) imagesToDelete.value.push(option.image)
+function removeOptionImage(state, option) {
+  if (option.image) state.toDelete.push(option.image)
   if (option.previewUrl) URL.revokeObjectURL(option.previewUrl)
   option.image = null
   option.imageFile = null
   option.previewUrl = ''
 }
 
+function cleanupState(state) {
+  if (state.previewUrl) URL.revokeObjectURL(state.previewUrl)
+  revokeOptionPreviews(state.form.options)
+}
+
 function resetForm() {
-  revokeOptionPreviews()
-  Object.assign(form, emptyForm())
-  editingId.value = ''
+  questionStates.value.forEach(cleanupState)
+  questionStates.value = []
   showQuestionForm.value = false
-  clearImageState()
 }
 
 function openSubject(name) {
@@ -734,24 +773,34 @@ function backToSubjects() {
 
 function startAddQuestion() {
   resetForm()
-  form.subject = activeSubject.value
+  questionStates.value = [newQuestionState(activeSubject.value)]
   showQuestionForm.value = true
 }
 
+/** Tambah kartu soal baru di modal yang sama. */
+function addQuestionCard() {
+  questionStates.value.push(newQuestionState(activeSubject.value))
+}
+
+/** Hapus kartu soal dari modal (sisakan minimal 1). */
+function removeQuestionCard(index) {
+  if (questionStates.value.length <= 1) return
+  const [removed] = questionStates.value.splice(index, 1)
+  if (removed) cleanupState(removed)
+}
+
 function startEdit(question) {
-  editingId.value = question.id
-  showQuestionForm.value = true
-  clearImageState()
-  form.subject = question.subject
-  form.type = question.type
-  form.question_text = question.question_text
-  form.correct_answer = question.correct_answer
-  form.image_url = question.image_url ?? ''
+  resetForm()
+  const state = newQuestionState(question.subject)
+  state.editingId = question.id
+  state.form.type = question.type
+  state.form.question_text = question.question_text
+  state.form.correct_answer = question.correct_answer
+  state.form.image_url = question.image_url ?? ''
 
   const existing = Array.isArray(question.options) ? question.options : []
   const source = existing.length > 0 ? existing : emptyForm().options
-  revokeOptionPreviews()
-  form.options = source.map((option) => ({
+  state.form.options = source.map((option) => ({
     label: String(option.label ?? '').trim().toUpperCase(),
     text: String(option.text ?? ''),
     image: String(option.image ?? '').trim() || null,
@@ -760,90 +809,107 @@ function startEdit(question) {
   }))
 
   // Pastikan label kunci jawaban tetap ada (mis. soal lama dengan label di luar A-D).
-  if (question.type === 'multiple_choice' && form.correct_answer && !form.options.some((o) => o.label === form.correct_answer)) {
-    form.options.push({ ...emptyOption(form.correct_answer), text: '' })
+  if (question.type === 'multiple_choice' && state.form.correct_answer && !state.form.options.some((o) => o.label === state.form.correct_answer)) {
+    state.form.options.push({ ...emptyOption(state.form.correct_answer), text: '' })
   }
+
+  questionStates.value = [state]
+  showQuestionForm.value = true
 }
 
-function validateForm() {
-  if (!form.subject.trim()) return 'Materi wajib diisi.'
-  if (!form.question_text.trim()) return 'Pertanyaan wajib diisi.'
+function validateState(state, number) {
+  const form = state.form
+  if (!form.question_text.trim()) return `Soal ${number}: pertanyaan wajib diisi.`
 
   if (form.type === 'multiple_choice') {
     const filled = form.options.filter(
       (option) => option.text.trim() || option.image || option.imageFile,
     )
-    if (filled.length < 2) return 'Isi minimal 2 pilihan jawaban (teks atau gambar).'
-    if (!form.correct_answer.trim()) return 'Kunci jawaban wajib dipilih.'
+    if (filled.length < 2) return `Soal ${number}: isi minimal 2 pilihan jawaban (teks atau gambar).`
+    if (!form.correct_answer.trim()) return `Soal ${number}: kunci jawaban wajib dipilih.`
     if (!filled.some((option) => option.label === form.correct_answer)) {
-      return 'Kunci jawaban harus salah satu dari pilihan yang terisi.'
+      return `Soal ${number}: kunci jawaban harus salah satu dari pilihan yang terisi.`
     }
   } else if (!form.correct_answer.trim()) {
-    return 'Kunci jawaban wajib diisi.'
+    return `Soal ${number}: kunci jawaban wajib diisi.`
   }
 
   return ''
 }
 
-async function handleSaveQuestion() {
-  const validationError = validateForm()
-  if (validationError) {
-    showToast(validationError, 'error')
+async function handleSaveAll() {
+  if (!String(activeSubject.value ?? '').trim()) {
+    showToast('Materi wajib diisi.', 'error')
     return
   }
 
-  isSavingQuestion.value = true
-  let uploadedUrl = null
-  const uploadedOptionUrls = []
-  try {
-    let imageUrl = form.image_url || null
-    if (imageFile.value) {
-      uploadedUrl = await uploadQuestionImage(imageFile.value)
-      imageUrl = uploadedUrl
+  for (let index = 0; index < questionStates.value.length; index += 1) {
+    const validationError = validateState(questionStates.value[index], index + 1)
+    if (validationError) {
+      showToast(validationError, 'error')
+      return
     }
+  }
 
-    // Unggah gambar pilihan yang baru dipilih.
-    if (form.type === 'multiple_choice') {
-      for (const option of form.options) {
-        if (option.imageFile) {
-          const url = await uploadQuestionImage(option.imageFile)
-          uploadedOptionUrls.push(url)
-          if (option.image) imagesToDelete.value.push(option.image)
-          option.image = url
-          option.imageFile = null
-          if (option.previewUrl) URL.revokeObjectURL(option.previewUrl)
-          option.previewUrl = ''
+  isSavingQuestion.value = true
+  const uploadedThisRun = []
+  const stale = []
+  try {
+    let added = 0
+    let updated = 0
+
+    for (const state of questionStates.value) {
+      const form = state.form
+
+      let imageUrl = form.image_url || null
+      if (state.imageFile) {
+        imageUrl = await uploadQuestionImage(state.imageFile)
+        uploadedThisRun.push(imageUrl)
+      }
+
+      // Unggah gambar pilihan yang baru dipilih.
+      if (form.type === 'multiple_choice') {
+        for (const option of form.options) {
+          if (option.imageFile) {
+            const url = await uploadQuestionImage(option.imageFile)
+            uploadedThisRun.push(url)
+            if (option.image) state.toDelete.push(option.image)
+            option.image = url
+            option.imageFile = null
+            if (option.previewUrl) URL.revokeObjectURL(option.previewUrl)
+            option.previewUrl = ''
+          }
         }
       }
+
+      const payload = {
+        subject: activeSubject.value,
+        type: form.type,
+        question_text: form.question_text,
+        options: form.type === 'multiple_choice' ? form.options : null,
+        correct_answer: form.correct_answer,
+        image_url: imageUrl,
+      }
+
+      if (state.editingId) {
+        await updateQuestion(state.editingId, payload)
+        updated += 1
+      } else {
+        await addQuestion(payload)
+        added += 1
+      }
+      stale.push(...state.toDelete)
     }
 
-    const payload = {
-      subject: form.subject,
-      type: form.type,
-      question_text: form.question_text,
-      options: form.type === 'multiple_choice' ? form.options : null,
-      correct_answer: form.correct_answer,
-      image_url: imageUrl,
-    }
-
-    if (editingId.value) {
-      await updateQuestion(editingId.value, payload)
-      showToast('Perubahan soal berhasil disimpan.')
-    } else {
-      await addQuestion(payload)
-      showToast('Soal berhasil disimpan.')
-    }
-
-    // Baru setelah perubahan tersimpan, hapus gambar lama yang tak terpakai.
-    const stale = [...imagesToDelete.value]
-    imagesToDelete.value = []
+    // Baru setelah semua tersimpan, hapus gambar lama yang tak terpakai.
     stale.forEach((url) => deleteQuestionImage(url))
 
     resetForm()
+    if (updated > 0 && added === 0) showToast('Perubahan soal berhasil disimpan.')
+    else showToast(`${added + updated} soal berhasil disimpan.`)
   } catch (err) {
     // Jangan tinggalkan gambar yatim kalau penyimpanan soal gagal.
-    if (uploadedUrl) deleteQuestionImage(uploadedUrl)
-    uploadedOptionUrls.forEach((url) => deleteQuestionImage(url))
+    uploadedThisRun.forEach((url) => deleteQuestionImage(url))
     showToast(err.message, 'error')
   } finally {
     isSavingQuestion.value = false
@@ -861,7 +927,7 @@ function handleDeleteQuestion(question) {
     async () => {
       await deleteQuestion(question.id)
       if (question.image_url) deleteQuestionImage(question.image_url)
-      if (editingId.value === question.id) resetForm()
+      if (questionStates.value.some((state) => state.editingId === question.id)) resetForm()
       showToast('Soal berhasil dihapus.')
     },
   )
@@ -886,7 +952,7 @@ function handleDeleteAllQuestions() {
 
       const removed = await deleteQuestionsBySubject(activeSubject.value)
       imageUrls.forEach((url) => deleteQuestionImage(url))
-      if (editingId.value) resetForm()
+      if (questionStates.value.length > 0) resetForm()
       showToast(`${removed} soal berhasil dihapus.`)
     },
   )
@@ -1699,10 +1765,13 @@ onMounted(async () => {
                 <div class="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4 sm:px-6">
                   <div class="min-w-0">
                     <h3 id="q-form-title" class="truncate text-lg font-extrabold text-slate-900 sm:text-xl">
-                      {{ editingId ? 'Edit Soal' : 'Tambah Soal' }}
+                      {{ isEditMode ? 'Edit Soal' : 'Tambah Soal' }}
                     </h3>
                     <p class="mt-0.5 truncate text-sm text-slate-500">
                       Materi: <span class="font-bold text-brand-700">{{ activeSubject }}</span>
+                      <span v-if="!isEditMode && questionStates.length > 1">
+                        · {{ questionStates.length }} soal
+                      </span>
                     </p>
                   </div>
                   <button
@@ -1715,51 +1784,69 @@ onMounted(async () => {
                   </button>
                 </div>
 
-                <div class="flex-1 overflow-y-auto px-5 py-5 sm:px-6">
-                  <form class="space-y-5" @submit.prevent="handleSaveQuestion">
-            <div>
-              <label class="label" for="q-type">Tipe Soal</label>
-              <select id="q-type" v-model="form.type" class="input">
-                <option value="multiple_choice">Pilihan Ganda</option>
-                <option value="short_answer">Isian Singkat</option>
-              </select>
-            </div>
+                <div class="flex-1 overflow-y-auto bg-slate-100 px-4 py-4 sm:px-6">
+                  <div class="space-y-4">
+                    <section
+                      v-for="(state, index) in questionStates"
+                      :key="state.key"
+                      class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 sm:p-5"
+                    >
+                      <div class="flex items-center justify-between gap-3">
+                        <span class="chip bg-brand-50 text-brand-700">Soal {{ index + 1 }}</span>
+                        <button
+                          v-if="!isEditMode && questionStates.length > 1"
+                          type="button"
+                          class="icon-btn-danger !h-9 !w-9"
+                          :aria-label="`Hapus kartu soal ${index + 1}`"
+                          @click="removeQuestionCard(index)"
+                        >
+                          <X :size="16" aria-hidden="true" />
+                        </button>
+                      </div>
 
-            <div>
-              <label class="label" for="q-text">Pertanyaan</label>
+                      <div class="mt-3">
+                        <label class="label" :for="`q-type-${state.key}`">Tipe Soal</label>
+                        <select :id="`q-type-${state.key}`" v-model="state.form.type" class="input">
+                          <option value="multiple_choice">Pilihan Ganda</option>
+                          <option value="short_answer">Isian Singkat</option>
+                        </select>
+                      </div>
+
+            <div class="mt-4">
+              <label class="label" :for="`q-text-${state.key}`">Pertanyaan</label>
               <textarea
-                id="q-text"
-                v-model="form.question_text"
+                :id="`q-text-${state.key}`"
+                v-model="state.form.question_text"
                 class="input min-h-[7rem] leading-relaxed"
                 placeholder="Tulis pertanyaan di sini..."
               />
               <div class="mt-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
                 <div class="text-lg text-slate-800">
-                  <MathText v-if="form.question_text.trim()" :text="form.question_text" />
+                  <MathText v-if="state.form.question_text.trim()" :text="state.form.question_text" />
                   <span v-else class="text-slate-400">Pratinjau soal muncul di sini.</span>
                 </div>
               </div>
             </div>
 
-            <div>
+            <div class="mt-4">
               <span class="label">Gambar Soal <span class="font-normal text-slate-400">(opsional)</span></span>
 
               <div
                 class="rounded-2xl border-2 border-dashed p-5 text-center transition sm:p-6"
                 :class="imageColumnAvailable === false
                   ? 'border-slate-200 bg-slate-50 opacity-60'
-                  : isImageDragging
+                  : state.dragging
                     ? 'border-brand-400 bg-brand-50'
                     : 'border-slate-200 bg-slate-50/60'"
-                @dragover.prevent="onImageDragOver"
-                @dragenter.prevent="onImageDragOver"
-                @dragleave="onImageDragLeave"
-                @drop.prevent="onImageDrop"
+                @dragover.prevent="onQuestionImageDragOver(state)"
+                @dragenter.prevent="onQuestionImageDragOver(state)"
+                @dragleave="onQuestionImageDragLeave(state, $event)"
+                @drop.prevent="onQuestionImageDrop(state, $event)"
               >
-                <div v-if="imagePreview" class="relative mx-auto w-fit">
+                <div v-if="questionPreview(state)" class="relative mx-auto w-fit">
                   <img
-                    :src="imagePreview"
-                    :alt="`Pratinjau gambar soal: ${form.question_text || 'soal'}`"
+                    :src="questionPreview(state)"
+                    :alt="`Pratinjau gambar soal: ${state.form.question_text || 'soal'}`"
                     class="max-h-56 w-auto rounded-2xl object-contain ring-1 ring-slate-200"
                   />
                   <button
@@ -1768,7 +1855,7 @@ onMounted(async () => {
                            bg-red-500 text-white shadow-card transition hover:bg-red-600 active:scale-95"
                     title="Hapus gambar"
                     aria-label="Hapus gambar"
-                    @click="removeImage"
+                    @click="removeQuestionImage(state)"
                   >
                     <X :size="16" aria-hidden="true" />
                   </button>
@@ -1782,24 +1869,24 @@ onMounted(async () => {
                   <p class="mt-1 text-sm text-slate-400">Tarik file ke sini atau pilih dari perangkat</p>
                 </template>
 
-                <div :class="imagePreview ? 'mt-4' : 'mt-3'">
+                <div :class="questionPreview(state) ? 'mt-4' : 'mt-3'">
                   <label
-                    for="q-image"
+                    :for="`q-image-${state.key}`"
                     class="btn-primary w-full !px-4 !py-2.5 !text-base sm:w-auto"
                     :class="imageColumnAvailable === false
                       ? 'pointer-events-none cursor-not-allowed opacity-50'
                       : 'cursor-pointer'"
                   >
                     <ImagePlus :size="18" aria-hidden="true" />
-                    {{ imagePreview ? 'Ganti Gambar' : 'Pilih Gambar' }}
+                    {{ questionPreview(state) ? 'Ganti Gambar' : 'Pilih Gambar' }}
                     <input
-                      id="q-image"
-                      ref="imageInput"
+                      :id="`q-image-${state.key}`"
+                      :ref="(node) => setQuestionImageRef(state.key, node)"
                       type="file"
                       accept="image/*"
                       class="hidden"
                       :disabled="imageColumnAvailable === false"
-                      @change="onImageSelect"
+                      @change="onQuestionImageSelect(state, $event)"
                     />
                   </label>
                   <p class="mt-2.5 text-xs font-semibold text-slate-400">JPG, PNG, atau WebP (Maks. 5 MB)</p>
@@ -1807,20 +1894,20 @@ onMounted(async () => {
               </div>
             </div>
 
-            <div v-if="isMultipleChoiceForm" class="space-y-3">
+            <div v-if="state.form.type === 'multiple_choice'" class="mt-4 space-y-3">
               <div class="flex items-center justify-between gap-3">
                 <p class="label mb-0">Pilihan Jawaban</p>
                 <button
                   type="button"
                   class="btn-ghost !text-brand-600"
-                  :disabled="form.options.length >= MAX_OPTIONS"
-                  @click="addOption"
+                  :disabled="state.form.options.length >= MAX_OPTIONS"
+                  @click="addOption(state)"
                 >
                   <Plus class="h-4 w-4" aria-hidden="true" />
                   Tambah Pilihan
                 </button>
               </div>
-              <div v-for="option in form.options" :key="option.label" class="rounded-2xl bg-slate-50 p-3">
+              <div v-for="option in state.form.options" :key="option.label" class="rounded-2xl bg-slate-50 p-3">
                 <div class="flex items-center gap-2">
                   <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-50 font-extrabold text-brand-700">
                     {{ option.label }}
@@ -1830,24 +1917,24 @@ onMounted(async () => {
                     type="text"
                     class="input min-w-0 flex-1"
                     :placeholder="`Pilihan ${option.label}...`"
-                    :aria-label="`Pilihan ${option.label}`"
+                    :aria-label="`Pilihan ${option.label} soal ${index + 1}`"
                   />
                   <button
                     type="button"
                     class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-slate-500 ring-1 ring-slate-200 transition hover:bg-brand-50 hover:text-brand-700"
                     :title="`Gambar untuk pilihan ${option.label}`"
-                    :aria-label="`Gambar untuk pilihan ${option.label}`"
-                    @click="pickOptionImage(option.label)"
+                    :aria-label="`Gambar untuk pilihan ${option.label} soal ${index + 1}`"
+                    @click="pickOptionImage(state, option.label)"
                   >
                     <ImagePlus :size="18" aria-hidden="true" />
                   </button>
                   <button
                     type="button"
                     class="icon-btn-danger"
-                    :disabled="form.options.length <= 2"
+                    :disabled="state.form.options.length <= 2"
                     :title="`Hapus pilihan ${option.label}`"
-                    :aria-label="`Hapus pilihan ${option.label}`"
-                    @click="removeOption(option.label)"
+                    :aria-label="`Hapus pilihan ${option.label} soal ${index + 1}`"
+                    @click="removeOption(state, option.label)"
                   >
                     <X class="h-5 w-5" aria-hidden="true" />
                   </button>
@@ -1864,7 +1951,7 @@ onMounted(async () => {
                   <button
                     type="button"
                     class="btn-ghost !px-2 !py-1 !text-sm !text-red-600"
-                    @click="removeOptionImage(option)"
+                    @click="removeOptionImage(state, option)"
                   >
                     Hapus
                   </button>
@@ -1872,38 +1959,67 @@ onMounted(async () => {
               </div>
             </div>
             <input
-              ref="optionImageInput"
+              :ref="(node) => setOptionImageRef(state.key, node)"
               type="file"
               accept="image/*"
               class="hidden"
-              aria-label="Gambar pilihan jawaban"
-              @change="onOptionImageSelect"
+              :aria-label="`Gambar pilihan jawaban soal ${index + 1}`"
+              @change="onOptionImageSelect(state, $event)"
             />
 
-            <div>
-              <label class="label" for="q-answer">Kunci Jawaban</label>
-              <select v-if="isMultipleChoiceForm" id="q-answer" v-model="form.correct_answer" class="input">
+            <div class="mt-4">
+              <label class="label" :for="`q-answer-${state.key}`">Kunci Jawaban</label>
+              <select
+                v-if="state.form.type === 'multiple_choice'"
+                :id="`q-answer-${state.key}`"
+                v-model="state.form.correct_answer"
+                class="input"
+              >
                 <option value="" disabled>Pilih kunci jawaban...</option>
-                <option v-for="label in availableLabels" :key="label" :value="label">{{ label }}</option>
+                <option
+                  v-for="label in state.form.options.map((option) => option.label)"
+                  :key="label"
+                  :value="label"
+                >
+                  {{ label }}
+                </option>
               </select>
               <input
                 v-else
-                id="q-answer"
-                v-model="form.correct_answer"
+                :id="`q-answer-${state.key}`"
+                v-model="state.form.correct_answer"
                 type="text"
                 class="input"
                 placeholder="Tulis jawaban yang benar..."
               />
             </div>
+                    </section>
 
-            <div class="flex items-center justify-between gap-3">
-              <button type="button" class="btn-neutral" @click="resetForm">Batal</button>
-              <button type="submit" class="btn-primary" :disabled="isSavingQuestion">
-                {{ isSavingQuestion ? 'Menyimpan...' : editingId ? 'Simpan Perubahan' : 'Simpan Soal' }}
-              </button>
-            </div>
-                  </form>
+                    <!-- Tambah kartu soal lain -->
+                    <button
+                      v-if="!isEditMode"
+                      type="button"
+                      class="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 bg-white px-4 py-4 font-extrabold text-brand-600 transition hover:border-brand-300 hover:bg-brand-50 active:scale-[0.99]"
+                      @click="addQuestionCard"
+                    >
+                      <Plus :size="20" aria-hidden="true" />
+                      Tambah Soal
+                    </button>
+                  </div>
                 </div>
+
+          <!-- Kaki fixed + divider -->
+          <div class="flex items-center justify-between gap-3 border-t-2 border-slate-200 bg-white px-5 py-4 sm:px-6">
+            <button type="button" class="btn-neutral" @click="resetForm">Batal</button>
+            <button
+              type="button"
+              class="btn-primary"
+              :disabled="isSavingQuestion || questionStates.length === 0"
+              @click="handleSaveAll"
+            >
+              {{ isSavingQuestion ? 'Menyimpan...' : isEditMode ? 'Simpan Perubahan' : `Simpan ${questionStates.length} Soal` }}
+            </button>
+          </div>
               </div>
             </div>
           </Transition>

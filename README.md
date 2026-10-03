@@ -257,8 +257,9 @@ TINGKAT 2 — soal di dalam materi itu (+ form Tambah Soal)
 
 - Setiap materi tampil sebagai **kartu** berisi jumlah soal dan rinciannya (Pilihan Ganda / Isian).
   Materi yang baru dibuat dan masih kosong tetap tampil dengan `0 soal`.
-- Klik kartu → masuk ke materi itu. Kolom **Materi** otomatis terkunci pada materi tersebut,
-  jadi guru tidak perlu memilihnya lagi tiap kali menambah soal.
+- Klik kartu → masuk ke materi itu, lalu tekan **Tambah Soal**: satu modal bisa menampung
+  **banyak soal sekaligus** (tiap soal jadi kartu sendiri, tambah dengan tombol **+ Tambah Soal**,
+  simpan sekaligus dengan **Simpan N Soal**).
 - **Edit** pada kartu mengubah nama materi — semua soalnya ikut pindah otomatis.
 - **Hapus** pada kartu menghapus materi **beserta semua soalnya** (ada dialog konfirmasi
   yang menyebutkan jumlah soal).
