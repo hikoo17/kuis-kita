@@ -1,5 +1,5 @@
 <script setup>
-import { computed, defineAsyncComponent, nextTick, onMounted, reactive, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, reactive, ref, watch } from 'vue'
 import {
   Archive,
   ArrowLeft,
@@ -16,7 +16,6 @@ import {
   School,
   Search,
   Settings,
-  Sigma,
   Trash2,
   Users,
   Volume2,
@@ -37,7 +36,6 @@ import ConfirmModal from '@/components/ConfirmModal.vue'
 import MathText from '@/components/MathText.vue'
 import InfoButton from '@/components/InfoButton.vue'
 import InfoModal from '@/components/InfoModal.vue'
-import FormulaModal from '@/components/FormulaModal.vue'
 
 // Wizard impor berat (JSZip + pembaca docx) dimuat hanya saat dipakai.
 const ImportQuestionsModal = defineAsyncComponent(
@@ -546,53 +544,8 @@ const isImageDragging = ref(false)
 
 const imagePreview = computed(() => imagePreviewUrl.value || form.image_url || '')
 
-// --- Impor dari Word + sisip rumus lewat dialog visual ---
+// --- Impor soal dari Word ---
 const showImport = ref(false)
-const showFormula = ref(false)
-const activeField = ref('question') // 'question' atau label pilihan (A, B, ...)
-const activeInput = ref(null)
-
-/** Catat kolom yang terakhir difokus agar rumus masuk ke tempat yang benar. */
-function onFieldFocus(field, event) {
-  activeField.value = field
-  activeInput.value = event.target
-}
-
-function currentFieldValue() {
-  if (activeField.value === 'question') return form.question_text
-  return form.options.find((option) => option.label === activeField.value)?.text ?? ''
-}
-
-function setCurrentFieldValue(value) {
-  if (activeField.value === 'question') {
-    form.question_text = value
-    return
-  }
-  const option = form.options.find((item) => item.label === activeField.value)
-  if (option) option.text = value
-}
-
-/** Sisipkan rumus ($latex$) di posisi kursor kolom yang sedang difokus. */
-function insertFormula(latex) {
-  const token = `$${latex}$`
-  const element = activeInput.value
-  const current = currentFieldValue()
-
-  if (!element) {
-    setCurrentFieldValue(`${current}${token}`)
-    return
-  }
-
-  const start = element.selectionStart ?? current.length
-  const end = element.selectionEnd ?? start
-  setCurrentFieldValue(`${current.slice(0, start)}${token}${current.slice(end)}`)
-
-  nextTick(() => {
-    element.focus()
-    const cursor = start + token.length
-    element.setSelectionRange(cursor, cursor)
-  })
-}
 
 /** Tampilkan pratinjau hanya untuk teks yang memuat rumus/matriks. */
 function hasMath(value) {
@@ -758,21 +711,6 @@ function removeOptionImage(option) {
   option.image = null
   option.imageFile = null
   option.previewUrl = ''
-}
-
-/** Buka dialog rumus untuk kolom pilihan tertentu. */
-function openFormulaForOption(label) {
-  activeField.value = label
-  const node = optionInputRefs.get(label)
-  if (node) activeInput.value = node
-  showFormula.value = true
-}
-
-const optionInputRefs = new Map()
-
-function setOptionRef(label, node) {
-  if (node) optionInputRefs.set(label, node)
-  else optionInputRefs.delete(label)
 }
 
 function resetForm() {
@@ -1788,23 +1726,12 @@ onMounted(async () => {
             </div>
 
             <div>
-              <div class="flex items-center justify-between gap-3">
-                <label class="label mb-0" for="q-text">Pertanyaan</label>
-                <button
-                  type="button"
-                  class="btn-ghost !text-brand-600"
-                  @click="showFormula = true"
-                >
-                  <Sigma :size="16" aria-hidden="true" />
-                  Sisipkan Rumus
-                </button>
-              </div>
+              <label class="label" for="q-text">Pertanyaan</label>
               <textarea
                 id="q-text"
                 v-model="form.question_text"
                 class="input min-h-[7rem] leading-relaxed"
                 placeholder="Tulis pertanyaan di sini..."
-                @focus="onFieldFocus('question', $event)"
               />
               <div class="mt-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
                 <div class="text-lg text-slate-800">
@@ -1904,18 +1831,7 @@ onMounted(async () => {
                     class="input min-w-0 flex-1"
                     :placeholder="`Pilihan ${option.label}...`"
                     :aria-label="`Pilihan ${option.label}`"
-                    :ref="(node) => setOptionRef(option.label, node)"
-                    @focus="onFieldFocus(option.label, $event)"
                   />
-                  <button
-                    type="button"
-                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-slate-500 ring-1 ring-slate-200 transition hover:bg-brand-50 hover:text-brand-700"
-                    :title="`Sisipkan rumus ke pilihan ${option.label}`"
-                    :aria-label="`Sisipkan rumus ke pilihan ${option.label}`"
-                    @click="openFormulaForOption(option.label)"
-                  >
-                    <Sigma :size="18" aria-hidden="true" />
-                  </button>
                   <button
                     type="button"
                     class="icon-btn-danger"
@@ -2402,12 +2318,6 @@ onMounted(async () => {
       :is-loading="confirmState.loading"
       @confirm="runConfirm"
       @cancel="cancelConfirm"
-    />
-
-    <FormulaModal
-      :open="showFormula"
-      @close="showFormula = false"
-      @insert="insertFormula"
     />
 
     <ImportQuestionsModal
