@@ -303,10 +303,12 @@ disimpan. Jadi input manual tinggal untuk tambahan saja.
 
 ### Gambar soal
 
-Form soal punya kolom **Gambar Soal (opsional)**: pilih berkas JPG/PNG/WebP (maks 5 MB), lihat
+Form soal punya kolom **Gambar Soal (opsional)** dan tiap **pilihan jawaban** juga bisa dipasangi
+gambar (mis. pilihan berupa matriks/grafik): pilih berkas JPG/PNG/WebP (maks 5 MB), lihat
 pratinjaunya, dan ganti/hapus lewat tombol yang tersedia. Gambar diunggah ke bucket Storage
-**`question-images`** (publik) dan URL-nya disimpan di kolom `questions.image_url`; gambar otomatis
-tampil saat kuis. Gambar lama dibersihkan saat diganti/dihapus.
+**`question-images`** (publik) dan URL-nya disimpan di kolom `questions.image_url` (soal) atau di
+tiap pilihan (`options[].image`); gambar otomatis tampil saat kuis. Gambar lama dibersihkan
+saat diganti/dihapus.
 
 > ℹ️ Fitur gambar butuh sekali migrasi: jalankan **`supabase/migration_question_images.sql`** di
 > SQL Editor (menambah kolom `image_url` + bucket `question-images` beserta izinnya). Kalau belum

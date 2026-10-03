@@ -522,16 +522,13 @@ function handleDeleteSubject(card, event) {
   )
 }
 
+const emptyOption = (label) => ({ label, text: '', image: null, imageFile: null, previewUrl: '' })
+
 const emptyForm = () => ({
   subject: '',
   type: 'multiple_choice',
   question_text: '',
-  options: [
-    { label: 'A', text: '' },
-    { label: 'B', text: '' },
-    { label: 'C', text: '' },
-    { label: 'D', text: '' },
-  ],
+  options: [emptyOption('A'), emptyOption('B'), emptyOption('C'), emptyOption('D')],
   correct_answer: '',
   image_url: '',
 })
@@ -631,7 +628,7 @@ function addOption() {
   }
   const label = nextOptionLabel()
   if (!label) return
-  form.options.push({ label, text: '' })
+  form.options.push(emptyOption(label))
 }
 
 /** Hapus satu pilihan jawaban (sisakan minimal 2). */
@@ -640,8 +637,20 @@ function removeOption(label) {
     showToast('Minimal 2 pilihan jawaban.', 'error')
     return
   }
+  const removed = form.options.find((option) => option.label === label)
+  if (removed) {
+    if (removed.image) imagesToDelete.value.push(removed.image)
+    if (removed.previewUrl) URL.revokeObjectURL(removed.previewUrl)
+  }
   form.options = form.options.filter((option) => option.label !== label)
   if (form.correct_answer === label) form.correct_answer = ''
+}
+
+/** Bebaskan object URL pratinjau gambar pilihan. */
+function revokeOptionPreviews(list = form.options) {
+  list.forEach((option) => {
+    if (option.previewUrl) URL.revokeObjectURL(option.previewUrl)
+  })
 }
 
 /** Bersihkan status gambar tanpa menyentuh berkas yang sudah tersimpan di server. */
@@ -703,7 +712,71 @@ function removeImage() {
   form.image_url = ''
 }
 
+// Gambar tiap pilihan jawaban: satu input berkas dipakai bersama.
+const optionImageInput = ref(null)
+const pendingImageLabel = ref('')
+
+function optionPreview(option) {
+  return option.previewUrl || option.image || ''
+}
+
+/** Terapkan berkas gambar ke satu pilihan (diunggah saat soal disimpan). */
+function acceptOptionImageFile(option, file) {
+  if (!file) return false
+
+  if (!file.type.startsWith('image/')) {
+    showToast('File harus berupa gambar (JPG, PNG, atau WebP).', 'error')
+    return false
+  }
+  if (file.size > QUESTION_IMAGE_MAX_BYTES) {
+    showToast('Ukuran gambar maksimal 5 MB.', 'error')
+    return false
+  }
+
+  if (option.previewUrl) URL.revokeObjectURL(option.previewUrl)
+  option.imageFile = file
+  option.previewUrl = URL.createObjectURL(file)
+  return true
+}
+
+function pickOptionImage(label) {
+  pendingImageLabel.value = label
+  optionImageInput.value?.click()
+}
+
+function onOptionImageSelect(event) {
+  const option = form.options.find((item) => item.label === pendingImageLabel.value)
+  const accepted = option ? acceptOptionImageFile(option, event.target.files?.[0]) : false
+  event.target.value = ''
+  if (!accepted) pendingImageLabel.value = ''
+}
+
+/** Hapus gambar satu pilihan (berkas server dihapus setelah simpan sukses). */
+function removeOptionImage(option) {
+  if (option.image) imagesToDelete.value.push(option.image)
+  if (option.previewUrl) URL.revokeObjectURL(option.previewUrl)
+  option.image = null
+  option.imageFile = null
+  option.previewUrl = ''
+}
+
+/** Buka dialog rumus untuk kolom pilihan tertentu. */
+function openFormulaForOption(label) {
+  activeField.value = label
+  const node = optionInputRefs.get(label)
+  if (node) activeInput.value = node
+  showFormula.value = true
+}
+
+const optionInputRefs = new Map()
+
+function setOptionRef(label, node) {
+  if (node) optionInputRefs.set(label, node)
+  else optionInputRefs.delete(label)
+}
+
 function resetForm() {
+  revokeOptionPreviews()
   Object.assign(form, emptyForm())
   editingId.value = ''
   showQuestionForm.value = false
@@ -739,14 +812,18 @@ function startEdit(question) {
 
   const existing = Array.isArray(question.options) ? question.options : []
   const source = existing.length > 0 ? existing : emptyForm().options
+  revokeOptionPreviews()
   form.options = source.map((option) => ({
     label: String(option.label ?? '').trim().toUpperCase(),
     text: String(option.text ?? ''),
+    image: String(option.image ?? '').trim() || null,
+    imageFile: null,
+    previewUrl: '',
   }))
 
   // Pastikan label kunci jawaban tetap ada (mis. soal lama dengan label di luar A-D).
   if (question.type === 'multiple_choice' && form.correct_answer && !form.options.some((o) => o.label === form.correct_answer)) {
-    form.options.push({ label: form.correct_answer, text: '' })
+    form.options.push({ ...emptyOption(form.correct_answer), text: '' })
   }
 }
 
@@ -755,8 +832,10 @@ function validateForm() {
   if (!form.question_text.trim()) return 'Pertanyaan wajib diisi.'
 
   if (form.type === 'multiple_choice') {
-    const filled = form.options.filter((option) => option.text.trim())
-    if (filled.length < 2) return 'Isi minimal 2 pilihan jawaban.'
+    const filled = form.options.filter(
+      (option) => option.text.trim() || option.image || option.imageFile,
+    )
+    if (filled.length < 2) return 'Isi minimal 2 pilihan jawaban (teks atau gambar).'
     if (!form.correct_answer.trim()) return 'Kunci jawaban wajib dipilih.'
     if (!filled.some((option) => option.label === form.correct_answer)) {
       return 'Kunci jawaban harus salah satu dari pilihan yang terisi.'
@@ -777,11 +856,27 @@ async function handleSaveQuestion() {
 
   isSavingQuestion.value = true
   let uploadedUrl = null
+  const uploadedOptionUrls = []
   try {
     let imageUrl = form.image_url || null
     if (imageFile.value) {
       uploadedUrl = await uploadQuestionImage(imageFile.value)
       imageUrl = uploadedUrl
+    }
+
+    // Unggah gambar pilihan yang baru dipilih.
+    if (form.type === 'multiple_choice') {
+      for (const option of form.options) {
+        if (option.imageFile) {
+          const url = await uploadQuestionImage(option.imageFile)
+          uploadedOptionUrls.push(url)
+          if (option.image) imagesToDelete.value.push(option.image)
+          option.image = url
+          option.imageFile = null
+          if (option.previewUrl) URL.revokeObjectURL(option.previewUrl)
+          option.previewUrl = ''
+        }
+      }
     }
 
     const payload = {
@@ -810,6 +905,7 @@ async function handleSaveQuestion() {
   } catch (err) {
     // Jangan tinggalkan gambar yatim kalau penyimpanan soal gagal.
     if (uploadedUrl) deleteQuestionImage(uploadedUrl)
+    uploadedOptionUrls.forEach((url) => deleteQuestionImage(url))
     showToast(err.message, 'error')
   } finally {
     isSavingQuestion.value = false
@@ -1798,18 +1894,28 @@ onMounted(async () => {
                 </button>
               </div>
               <div v-for="option in form.options" :key="option.label" class="rounded-2xl bg-slate-50 p-3">
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2">
                   <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-50 font-extrabold text-brand-700">
                     {{ option.label }}
                   </span>
                   <input
                     v-model="option.text"
                     type="text"
-                    class="input flex-1"
+                    class="input min-w-0 flex-1"
                     :placeholder="`Pilihan ${option.label}...`"
                     :aria-label="`Pilihan ${option.label}`"
+                    :ref="(node) => setOptionRef(option.label, node)"
                     @focus="onFieldFocus(option.label, $event)"
                   />
+                  <button
+                    type="button"
+                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-slate-500 ring-1 ring-slate-200 transition hover:bg-brand-50 hover:text-brand-700"
+                    :title="`Sisipkan rumus ke pilihan ${option.label}`"
+                    :aria-label="`Sisipkan rumus ke pilihan ${option.label}`"
+                    @click="openFormulaForOption(option.label)"
+                  >
+                    <Sigma :size="18" aria-hidden="true" />
+                  </button>
                   <button
                     type="button"
                     class="icon-btn-danger"
@@ -1824,8 +1930,49 @@ onMounted(async () => {
                 <div v-if="hasMath(option.text)" class="mt-2 rounded-xl bg-white px-3 py-2 text-slate-800 ring-1 ring-slate-200">
                   <MathText :text="option.text" />
                 </div>
+                <div class="mt-2 flex items-center gap-2">
+                  <img
+                    v-if="optionPreview(option)"
+                    :src="optionPreview(option)"
+                    :alt="`Gambar pilihan ${option.label}`"
+                    class="h-14 w-auto rounded-xl object-contain ring-1 ring-slate-200"
+                  />
+                  <button
+                    v-if="!optionPreview(option)"
+                    type="button"
+                    class="btn-ghost !px-2 !py-1 !text-sm !text-brand-600"
+                    @click="pickOptionImage(option.label)"
+                  >
+                    <ImagePlus :size="16" aria-hidden="true" />
+                    Gambar
+                  </button>
+                  <template v-else>
+                    <button
+                      type="button"
+                      class="btn-ghost !px-2 !py-1 !text-sm"
+                      @click="pickOptionImage(option.label)"
+                    >
+                      Ganti
+                    </button>
+                    <button
+                      type="button"
+                      class="btn-ghost !px-2 !py-1 !text-sm !text-red-600"
+                      @click="removeOptionImage(option)"
+                    >
+                      Hapus
+                    </button>
+                  </template>
+                </div>
               </div>
             </div>
+            <input
+              ref="optionImageInput"
+              type="file"
+              accept="image/*"
+              class="hidden"
+              aria-label="Gambar pilihan jawaban"
+              @change="onOptionImageSelect"
+            />
 
             <div>
               <label class="label" for="q-answer">Kunci Jawaban</label>
@@ -1919,6 +2066,13 @@ onMounted(async () => {
               <ul v-if="question.type === 'multiple_choice' && question.options" class="mt-2 space-y-1">
                 <li v-for="option in question.options" :key="option.label" class="text-slate-600">
                   <span class="font-extrabold">{{ option.label }}.</span> {{ option.text }}
+                  <img
+                    v-if="option.image"
+                    :src="option.image"
+                    :alt="`Gambar pilihan ${option.label}`"
+                    class="mt-1 block h-16 w-auto rounded-lg object-contain ring-1 ring-slate-200"
+                    loading="lazy"
+                  />
                 </li>
               </ul>
 

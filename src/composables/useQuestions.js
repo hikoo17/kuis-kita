@@ -302,8 +302,9 @@ export function sanitizeQuestion(payload) {
         .map((option) => ({
           label: String(option.label ?? '').trim().toUpperCase(),
           text: String(option.text ?? '').trim(),
+          image: String(option.image ?? '').trim() || null,
         }))
-        .filter((option) => option.label && option.text)
+        .filter((option) => option.label && (option.text || option.image))
     : null
 
   return {

@@ -72,8 +72,15 @@ function labelClasses(option) {
       >
         {{ option.label }}
       </span>
-      <span class="text-base font-bold leading-snug text-slate-800 sm:text-lg">
+      <span class="min-w-0 flex-1 text-base font-bold leading-snug text-slate-800 sm:text-lg">
         <MathText :text="option.text" />
+        <img
+          v-if="option.image"
+          :src="option.image"
+          :alt="`Gambar pilihan ${option.label}`"
+          class="mt-2 block max-h-32 w-auto rounded-xl object-contain ring-1 ring-slate-200"
+          loading="lazy"
+        />
       </span>
 
       <!-- Penanda benar/salah, hanya pada pilihan yang dipilih. -->

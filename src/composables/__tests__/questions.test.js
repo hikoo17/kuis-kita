@@ -34,9 +34,24 @@ describe('sanitizeQuestion', () => {
     })
 
     expect(result.options).toEqual([
-      { label: 'A', text: 'Satu' },
-      { label: 'C', text: 'Tiga' },
+      { label: 'A', text: 'Satu', image: null },
+      { label: 'C', text: 'Tiga', image: null },
     ])
+  })
+
+  it('mempertahankan gambar pilihan dan membolehkan opsi tanpa teks', () => {
+    const result = sanitizeQuestion({
+      subject: 'Matriks',
+      type: 'multiple_choice',
+      question_text: 'Pilih matriks yang benar',
+      correct_answer: 'A',
+      options: [
+        { label: 'A', text: '  ', image: '  https://contoh/a.png ' },
+        { label: 'B', text: '', image: null },
+      ],
+    })
+
+    expect(result.options).toEqual([{ label: 'A', text: '', image: 'https://contoh/a.png' }])
   })
 
   it('menjadikan image_url null ketika kosong', () => {

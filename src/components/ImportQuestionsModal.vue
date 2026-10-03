@@ -1,11 +1,11 @@
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
-import { FileUp, Sigma, Trash2, X } from '@lucide/vue'
+import { FileUp, ImagePlus, Sigma, Trash2, X } from '@lucide/vue'
 import MathText from '@/components/MathText.vue'
 import FormulaModal from '@/components/FormulaModal.vue'
 import { extractDocxBlocks } from '@/lib/docxImport'
 import { parseQuestions } from '@/lib/parseQuestions'
-import { useQuestions } from '@/composables/useQuestions'
+import { useQuestions, QUESTION_IMAGE_MAX_BYTES } from '@/composables/useQuestions'
 import { useModalFocus } from '@/composables/useModalFocus'
 
 const props = defineProps({
@@ -15,7 +15,7 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'imported'])
 
-const { addQuestion } = useQuestions()
+const { addQuestion, uploadQuestionImage, deleteQuestionImage } = useQuestions()
 
 const dialogRef = ref(null)
 const fileInput = ref(null)
@@ -125,7 +125,7 @@ async function onFileChange(event) {
     items.value = parsed.map((item) => ({
       ...item,
       selected: true,
-      options: item.options.map((option) => ({ ...option })),
+      options: item.options.map((option) => ({ ...option, image: null, imageFile: null, previewUrl: '' })),
     }))
   } catch (err) {
     parseError.value = err.message || 'Gagal membaca file. Pastikan file .docx yang benar.'
@@ -141,9 +141,54 @@ function removeItem(index) {
 function isImportable(item) {
   if (!item.text.trim() || !item.correctAnswer.trim()) return false
   if (item.type === 'multiple_choice') {
-    return item.options.filter((option) => option.text.trim()).length >= 2
+    return (
+      item.options.filter((option) => option.text.trim() || option.image || option.imageFile).length >= 2
+    )
   }
   return true
+}
+
+// Gambar tiap pilihan di pratinjau: satu input berkas dipakai bersama,
+// berkas diunggah saat import dijalankan.
+const optionImageInput = ref(null)
+const pendingImageTarget = ref({ index: -1, label: '' })
+
+function optionPreview(option) {
+  return option.previewUrl || option.image || ''
+}
+
+function pickOptionImage(index, label) {
+  pendingImageTarget.value = { index, label }
+  optionImageInput.value?.click()
+}
+
+function onOptionImageSelect(event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  const { index, label } = pendingImageTarget.value
+  const option = items.value[index]?.options.find((item) => item.label === label)
+  if (!option || !file) return
+
+  if (!file.type.startsWith('image/')) {
+    parseError.value = 'File harus berupa gambar (JPG, PNG, atau WebP).'
+    return
+  }
+  if (file.size > QUESTION_IMAGE_MAX_BYTES) {
+    parseError.value = 'Ukuran gambar maksimal 5 MB.'
+    return
+  }
+
+  if (option.previewUrl) URL.revokeObjectURL(option.previewUrl)
+  option.imageFile = file
+  option.previewUrl = URL.createObjectURL(file)
+}
+
+function removeOptionImage(index, label) {
+  const option = items.value[index]?.options.find((item) => item.label === label)
+  if (!option) return
+  if (option.previewUrl) URL.revokeObjectURL(option.previewUrl)
+  option.imageFile = null
+  option.previewUrl = ''
 }
 
 /**
@@ -162,8 +207,23 @@ async function runImport() {
 
   isImporting.value = true
   let imported = 0
+  const uploadedThisRun = []
   try {
     for (const item of queue) {
+      // Unggah gambar pilihan sebelum soal disimpan.
+      if (item.type === 'multiple_choice') {
+        for (const option of item.options) {
+          if (option.imageFile) {
+            const url = await uploadQuestionImage(option.imageFile)
+            uploadedThisRun.push(url)
+            option.image = url
+            option.imageFile = null
+            if (option.previewUrl) URL.revokeObjectURL(option.previewUrl)
+            option.previewUrl = ''
+          }
+        }
+      }
+
       await addQuestion({
         subject: props.subject,
         type: item.type,
@@ -177,6 +237,8 @@ async function runImport() {
     emit('imported', imported)
     emit('close')
   } catch (err) {
+    // Bersihkan gambar yang sempat terunggah supaya tidak yatim.
+    uploadedThisRun.forEach((url) => deleteQuestionImage(url))
     parseError.value = err.message || 'Sebagian soal gagal disimpan. Coba lagi.'
   } finally {
     isImporting.value = false
@@ -319,26 +381,51 @@ async function runImport() {
                       </div>
 
                       <div v-if="item.type === 'multiple_choice'" class="mt-2 space-y-1.5">
-                        <div v-for="option in item.options" :key="option.label" class="flex items-center gap-2">
-                          <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-sm font-extrabold text-brand-700">
-                            {{ option.label }}
-                          </span>
-                          <input
-                            v-model="option.text"
-                            type="text"
-                            class="input !py-2 !text-base"
-                            :aria-label="`Pilihan ${option.label}`"
-                            :ref="(node) => setFieldRef(index, option.label, node)"
-                          />
-                          <button
-                            type="button"
-                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 transition hover:bg-brand-50 hover:text-brand-700"
-                            :title="`Sisipkan rumus ke pilihan ${option.label}`"
-                            :aria-label="`Sisipkan rumus ke pilihan ${option.label}`"
-                            @click="openFormula(index, option.label)"
-                          >
-                            <Sigma :size="16" aria-hidden="true" />
-                          </button>
+                        <div v-for="option in item.options" :key="option.label" class="rounded-xl bg-slate-50 p-2">
+                          <div class="flex items-center gap-2">
+                            <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-sm font-extrabold text-brand-700">
+                              {{ option.label }}
+                            </span>
+                            <input
+                              v-model="option.text"
+                              type="text"
+                              class="input min-w-0 flex-1 !py-2 !text-base"
+                              :aria-label="`Pilihan ${option.label}`"
+                              :ref="(node) => setFieldRef(index, option.label, node)"
+                            />
+                            <button
+                              type="button"
+                              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-slate-500 ring-1 ring-slate-200 transition hover:bg-brand-50 hover:text-brand-700"
+                              :title="`Sisipkan rumus ke pilihan ${option.label}`"
+                              :aria-label="`Sisipkan rumus ke pilihan ${option.label}`"
+                              @click="openFormula(index, option.label)"
+                            >
+                              <Sigma :size="16" aria-hidden="true" />
+                            </button>
+                            <button
+                              type="button"
+                              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-slate-500 ring-1 ring-slate-200 transition hover:bg-brand-50 hover:text-brand-700"
+                              :title="`Gambar untuk pilihan ${option.label}`"
+                              :aria-label="`Gambar untuk pilihan ${option.label}`"
+                              @click="pickOptionImage(index, option.label)"
+                            >
+                              <ImagePlus :size="16" aria-hidden="true" />
+                            </button>
+                          </div>
+                          <div v-if="optionPreview(option)" class="mt-2 flex items-center gap-2">
+                            <img
+                              :src="optionPreview(option)"
+                              :alt="`Gambar pilihan ${option.label}`"
+                              class="h-12 w-auto rounded-lg object-contain ring-1 ring-slate-200"
+                            />
+                            <button
+                              type="button"
+                              class="btn-ghost !px-2 !py-1 !text-sm !text-red-600"
+                              @click="removeOptionImage(index, option.label)"
+                            >
+                              Hapus
+                            </button>
+                          </div>
                         </div>
                       </div>
 
@@ -375,6 +462,14 @@ async function runImport() {
                   </div>
                 </li>
               </ul>
+              <input
+                ref="optionImageInput"
+                type="file"
+                accept="image/*"
+                class="hidden"
+                aria-label="Gambar pilihan jawaban"
+                @change="onOptionImageSelect"
+              />
             </div>
           </div>
 
