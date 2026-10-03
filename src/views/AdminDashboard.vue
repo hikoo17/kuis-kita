@@ -1896,11 +1896,11 @@ onMounted(async () => {
               />
             </div>
 
-            <div class="flex flex-col gap-3 sm:flex-row">
-              <button type="submit" class="btn-primary flex-1" :disabled="isSavingQuestion">
+            <div class="flex items-center justify-between gap-3">
+              <button type="button" class="btn-neutral" @click="resetForm">Batal</button>
+              <button type="submit" class="btn-primary" :disabled="isSavingQuestion">
                 {{ isSavingQuestion ? 'Menyimpan...' : editingId ? 'Simpan Perubahan' : 'Simpan Soal' }}
               </button>
-              <button type="button" class="btn-neutral" @click="resetForm">Batal</button>
             </div>
                   </form>
                 </div>
