@@ -262,10 +262,13 @@ async function runImport() {
               <p class="mt-1 text-sm font-medium text-slate-500">
                 Format yang didukung: Berkas Microsoft Word (.docx)
               </p>
+              <p class="mt-2 max-w-md text-xs font-semibold text-slate-400">
+                Catatan: format soal wajib menggunakan pilihan A, B, C dan menyertakan kunci jawaban di bawahnya.
+              </p>
 
               <label class="mt-4 inline-flex cursor-pointer items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-blue-600/20 transition hover:bg-blue-700 active:scale-95">
                 <FileUp :size="18" />
-                <span>{{ isParsing ? 'Membaca File...' : 'Pilih Berkas Word' }}</span>
+                <span>{{ isParsing ? 'Membaca File...' : 'Pilih File Soal (.docx)' }}</span>
                 <input
                   ref="fileInput"
                   type="file"

@@ -234,6 +234,9 @@ async function runImport() {
                   {{ isParsing ? 'Membaca berkas...' : 'Seret & lepas berkas ke sini' }}
                 </p>
                 <p class="mt-1 text-sm font-medium text-slate-400">Format didukung: .csv, .xlsx</p>
+                <p class="mt-2 max-w-md text-xs font-semibold text-slate-400">
+                  Catatan: wajib ada kolom Nama. Kolom Kelas opsional (otomatis disesuaikan dengan pilihan kelas di atas).
+                </p>
 
                 <!-- Tombol Pilih File -->
                 <label
