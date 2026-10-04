@@ -231,7 +231,7 @@ async function runImport() {
                 </div>
 
                 <p class="mt-4 text-base font-bold text-slate-800">
-                  {{ isParsing ? 'Membaca berkas...' : 'Seret & lepas berkas ke sini' }}
+                  {{ isParsing ? 'Membaca berkas...' : 'Pilih file (.xlsx / .csv)' }}
                 </p>
                 <p class="mt-1 text-sm font-medium text-slate-400">Format didukung: .csv, .xlsx</p>
                 <p class="mt-2 max-w-md text-xs font-semibold text-slate-400">
