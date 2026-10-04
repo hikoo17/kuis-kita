@@ -436,6 +436,8 @@ function handleResetAllScores() {
 const activeSubject = ref('') // '' = show the subject cards
 const showQuestionForm = ref(false) // form is collapsed until "Tambah Soal"
 const questionDialogRef = ref(null)
+const questionBodyRef = ref(null)
+const questionFormError = ref('')
 const filterType = ref('all')
 
 useModalFocus(
@@ -592,6 +594,15 @@ function newQuestionState(subject) {
 const questionStates = ref([])
 const isEditMode = computed(
   () => questionStates.value.length === 1 && !!questionStates.value[0]?.editingId,
+)
+
+// Hilangkan banner error begitu guru mulai memperbaiki isian.
+watch(
+  questionStates,
+  () => {
+    if (questionFormError.value) questionFormError.value = ''
+  },
+  { deep: true },
 )
 
 // Elemen <input type=file> per kartu (gambar soal & gambar pilihan).
@@ -791,6 +802,7 @@ function resetForm() {
   questionStates.value.forEach(cleanupState)
   questionStates.value = []
   showQuestionForm.value = false
+  questionFormError.value = ''
 }
 
 function openSubject(name) {
@@ -872,7 +884,9 @@ function validateState(state, number) {
 }
 
 async function handleSaveAll() {
+  questionFormError.value = ''
   if (!String(activeSubject.value ?? '').trim()) {
+    questionFormError.value = 'Materi wajib diisi.'
     showToast('Materi wajib diisi.', 'error')
     return
   }
@@ -880,7 +894,9 @@ async function handleSaveAll() {
   for (let index = 0; index < questionStates.value.length; index += 1) {
     const validationError = validateState(questionStates.value[index], index + 1)
     if (validationError) {
+      questionFormError.value = validationError
       showToast(validationError, 'error')
+      questionBodyRef.value?.scrollTo({ top: 0, behavior: 'smooth' })
       return
     }
   }
@@ -1978,7 +1994,11 @@ onMounted(async () => {
             </div>
 
             <!-- Body Scrollable -->
-            <div class="flex-1 overflow-y-auto bg-slate-50/80 p-4 sm:p-6">
+            <div ref="questionBodyRef" class="flex-1 overflow-y-auto bg-slate-50/80 p-4 sm:p-6">
+              <p v-if="questionFormError" class="mb-4 flex items-start gap-2 rounded-2xl bg-red-50 p-4 text-sm font-bold text-red-600 ring-1 ring-inset ring-red-500/20" role="alert">
+                <span aria-hidden="true">⚠️</span>
+                <span>{{ questionFormError }}</span>
+              </p>
               <div class="space-y-5">
                 <section
                   v-for="(state, index) in questionStates"
@@ -2799,7 +2819,7 @@ onMounted(async () => {
     >
       <div
         v-if="toast.show"
-        class="fixed bottom-24 left-1/2 z-50 w-[min(92vw,28rem)] -translate-x-1/2 rounded-2xl px-5 py-4
+        class="fixed bottom-24 left-1/2 z-[100] w-[min(92vw,28rem)] -translate-x-1/2 rounded-2xl px-5 py-4
                text-center font-bold shadow-card-hover sm:bottom-6"
         :class="toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-slate-900 text-white'"
         role="status"
